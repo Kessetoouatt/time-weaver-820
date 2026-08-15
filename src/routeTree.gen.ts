@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedClassesRouteImport } from './routes/_authenticated/classes'
+import { Route as AuthenticatedEmploiDuTempsRouteImport } from './routes/_authenticated/emploi-du-temps'
 import { Route as AuthenticatedEnseignantsRouteImport } from './routes/_authenticated/enseignants'
 import { Route as AuthenticatedMatieresRouteImport } from './routes/_authenticated/matieres'
 import { Route as AuthenticatedParametresRouteImport } from './routes/_authenticated/parametres'
@@ -32,6 +34,17 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedClassesRoute = AuthenticatedClassesRouteImport.update({
+  id: '/classes',
+  path: '/classes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEmploiDuTempsRoute =
+  AuthenticatedEmploiDuTempsRouteImport.update({
+    id: '/emploi-du-temps',
+    path: '/emploi-du-temps',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEnseignantsRoute =
   AuthenticatedEnseignantsRouteImport.update({
     id: '/enseignants',
@@ -63,6 +76,8 @@ const AuthenticatedTableauDeBordRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/classes': typeof AuthenticatedClassesRoute
+  '/emploi-du-temps': typeof AuthenticatedEmploiDuTempsRoute
   '/enseignants': typeof AuthenticatedEnseignantsRoute
   '/matieres': typeof AuthenticatedMatieresRoute
   '/parametres': typeof AuthenticatedParametresRoute
@@ -72,6 +87,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/classes': typeof AuthenticatedClassesRoute
+  '/emploi-du-temps': typeof AuthenticatedEmploiDuTempsRoute
   '/enseignants': typeof AuthenticatedEnseignantsRoute
   '/matieres': typeof AuthenticatedMatieresRoute
   '/parametres': typeof AuthenticatedParametresRoute
@@ -83,6 +100,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/classes': typeof AuthenticatedClassesRoute
+  '/_authenticated/emploi-du-temps': typeof AuthenticatedEmploiDuTempsRoute
   '/_authenticated/enseignants': typeof AuthenticatedEnseignantsRoute
   '/_authenticated/matieres': typeof AuthenticatedMatieresRoute
   '/_authenticated/parametres': typeof AuthenticatedParametresRoute
@@ -94,6 +113,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/classes'
+    | '/emploi-du-temps'
     | '/enseignants'
     | '/matieres'
     | '/parametres'
@@ -103,6 +124,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/classes'
+    | '/emploi-du-temps'
     | '/enseignants'
     | '/matieres'
     | '/parametres'
@@ -113,6 +136,8 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/classes'
+    | '/_authenticated/emploi-du-temps'
     | '/_authenticated/enseignants'
     | '/_authenticated/matieres'
     | '/_authenticated/parametres'
@@ -148,6 +173,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/classes': {
+      id: '/_authenticated/classes'
+      path: '/classes'
+      fullPath: '/classes'
+      preLoaderRoute: typeof AuthenticatedClassesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/emploi-du-temps': {
+      id: '/_authenticated/emploi-du-temps'
+      path: '/emploi-du-temps'
+      fullPath: '/emploi-du-temps'
+      preLoaderRoute: typeof AuthenticatedEmploiDuTempsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/enseignants': {
       id: '/_authenticated/enseignants'
@@ -188,6 +227,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedClassesRoute: typeof AuthenticatedClassesRoute
+  AuthenticatedEmploiDuTempsRoute: typeof AuthenticatedEmploiDuTempsRoute
   AuthenticatedEnseignantsRoute: typeof AuthenticatedEnseignantsRoute
   AuthenticatedMatieresRoute: typeof AuthenticatedMatieresRoute
   AuthenticatedParametresRoute: typeof AuthenticatedParametresRoute
@@ -196,6 +237,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedClassesRoute: AuthenticatedClassesRoute,
+  AuthenticatedEmploiDuTempsRoute: AuthenticatedEmploiDuTempsRoute,
   AuthenticatedEnseignantsRoute: AuthenticatedEnseignantsRoute,
   AuthenticatedMatieresRoute: AuthenticatedMatieresRoute,
   AuthenticatedParametresRoute: AuthenticatedParametresRoute,

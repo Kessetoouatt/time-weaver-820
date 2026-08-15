@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedEnseignantsRouteImport } from './routes/_authenticated/enseignants'
 import { Route as AuthenticatedParametresRouteImport } from './routes/_authenticated/parametres'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
 
@@ -29,6 +30,12 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedEnseignantsRoute =
+  AuthenticatedEnseignantsRouteImport.update({
+    id: '/enseignants',
+    path: '/enseignants',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedParametresRoute = AuthenticatedParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
@@ -44,12 +51,14 @@ const AuthenticatedTableauDeBordRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/enseignants': typeof AuthenticatedEnseignantsRoute
   '/parametres': typeof AuthenticatedParametresRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/enseignants': typeof AuthenticatedEnseignantsRoute
   '/parametres': typeof AuthenticatedParametresRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
 }
@@ -58,19 +67,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/enseignants': typeof AuthenticatedEnseignantsRoute
   '/_authenticated/parametres': typeof AuthenticatedParametresRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/parametres' | '/tableau-de-bord'
+  fullPaths: '/' | '/auth' | '/enseignants' | '/parametres' | '/tableau-de-bord'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/parametres' | '/tableau-de-bord'
+  to: '/' | '/auth' | '/enseignants' | '/parametres' | '/tableau-de-bord'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/enseignants'
     | '/_authenticated/parametres'
     | '/_authenticated/tableau-de-bord'
   fileRoutesById: FileRoutesById
@@ -104,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/enseignants': {
+      id: '/_authenticated/enseignants'
+      path: '/enseignants'
+      fullPath: '/enseignants'
+      preLoaderRoute: typeof AuthenticatedEnseignantsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/parametres': {
       id: '/_authenticated/parametres'
       path: '/parametres'
@@ -122,11 +140,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedEnseignantsRoute: typeof AuthenticatedEnseignantsRoute
   AuthenticatedParametresRoute: typeof AuthenticatedParametresRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedEnseignantsRoute: AuthenticatedEnseignantsRoute,
   AuthenticatedParametresRoute: AuthenticatedParametresRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
 }

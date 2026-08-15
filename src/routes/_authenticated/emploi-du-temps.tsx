@@ -58,11 +58,11 @@ function TimetablePage() {
     setBusy(true);
     try {
       const result = await generate({ data: { label: `Génération ${new Date().toLocaleString("fr-FR")}` } });
-      if (result.success) {
-        toast.success(`Emploi du temps généré : ${result.placed} cours placés.`);
-        setVersionId(result.versionId ?? null);
+      if (result.ok) {
+        toast.success("Emploi du temps généré avec succès.");
+        setVersionId(result.versionId);
       } else {
-        toast.error(result.message ?? "Génération impossible avec les contraintes actuelles.");
+        toast.error(result.errors[0] ?? "Génération impossible avec les contraintes actuelles.");
       }
       await queryClient.invalidateQueries();
     } catch (error) {
@@ -74,8 +74,8 @@ function TimetablePage() {
 
   const onDrop = async (entryId: string, day: string, start: string, end: string) => {
     try {
-      const result = await move({ data: { entryId, dayOfWeek: day, startTime: start, endTime: end } });
-      if (!result.success) toast.error(result.message ?? "Conflit détecté : déplacement refusé.");
+      const result = await move({ data: { entryId, day_of_week: day, start_time: start, end_time: end } });
+      if (!result.ok) toast.error(result.error);
       else toast.success("Cours déplacé.");
       await queryClient.invalidateQueries();
     } catch (error) {

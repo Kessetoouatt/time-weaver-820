@@ -119,8 +119,8 @@ function SettingsPage() {
         _start: `${start}:00`,
         _end: `${end}:00`,
         _slot: slot,
-        _break_start: hasBreak ? `${breakStart}:00` : null,
-        _break_end: hasBreak ? `${breakEnd}:00` : null,
+        _break_start: hasBreak ? `${breakStart}:00` : undefined,
+        _break_end: hasBreak ? `${breakEnd}:00` : undefined,
       });
       setBusy(false);
       if (error) {

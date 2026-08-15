@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedEnseignantsRouteImport } from './routes/_authenticated/enseignants'
+import { Route as AuthenticatedMatieresRouteImport } from './routes/_authenticated/matieres'
 import { Route as AuthenticatedParametresRouteImport } from './routes/_authenticated/parametres'
+import { Route as AuthenticatedSallesRouteImport } from './routes/_authenticated/salles'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
 
 const IndexRoute = IndexRouteImport.update({
@@ -36,9 +38,19 @@ const AuthenticatedEnseignantsRoute =
     path: '/enseignants',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMatieresRoute = AuthenticatedMatieresRouteImport.update({
+  id: '/matieres',
+  path: '/matieres',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedParametresRoute = AuthenticatedParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSallesRoute = AuthenticatedSallesRouteImport.update({
+  id: '/salles',
+  path: '/salles',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedTableauDeBordRoute =
@@ -52,14 +64,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/enseignants': typeof AuthenticatedEnseignantsRoute
+  '/matieres': typeof AuthenticatedMatieresRoute
   '/parametres': typeof AuthenticatedParametresRoute
+  '/salles': typeof AuthenticatedSallesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/enseignants': typeof AuthenticatedEnseignantsRoute
+  '/matieres': typeof AuthenticatedMatieresRoute
   '/parametres': typeof AuthenticatedParametresRoute
+  '/salles': typeof AuthenticatedSallesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
 }
 export interface FileRoutesById {
@@ -68,21 +84,39 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/enseignants': typeof AuthenticatedEnseignantsRoute
+  '/_authenticated/matieres': typeof AuthenticatedMatieresRoute
   '/_authenticated/parametres': typeof AuthenticatedParametresRoute
+  '/_authenticated/salles': typeof AuthenticatedSallesRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/enseignants' | '/parametres' | '/tableau-de-bord'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/enseignants'
+    | '/matieres'
+    | '/parametres'
+    | '/salles'
+    | '/tableau-de-bord'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/enseignants' | '/parametres' | '/tableau-de-bord'
+  to:
+    | '/'
+    | '/auth'
+    | '/enseignants'
+    | '/matieres'
+    | '/parametres'
+    | '/salles'
+    | '/tableau-de-bord'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/enseignants'
+    | '/_authenticated/matieres'
     | '/_authenticated/parametres'
+    | '/_authenticated/salles'
     | '/_authenticated/tableau-de-bord'
   fileRoutesById: FileRoutesById
 }
@@ -122,11 +156,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEnseignantsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/matieres': {
+      id: '/_authenticated/matieres'
+      path: '/matieres'
+      fullPath: '/matieres'
+      preLoaderRoute: typeof AuthenticatedMatieresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/parametres': {
       id: '/_authenticated/parametres'
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof AuthenticatedParametresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salles': {
+      id: '/_authenticated/salles'
+      path: '/salles'
+      fullPath: '/salles'
+      preLoaderRoute: typeof AuthenticatedSallesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tableau-de-bord': {
@@ -141,13 +189,17 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedEnseignantsRoute: typeof AuthenticatedEnseignantsRoute
+  AuthenticatedMatieresRoute: typeof AuthenticatedMatieresRoute
   AuthenticatedParametresRoute: typeof AuthenticatedParametresRoute
+  AuthenticatedSallesRoute: typeof AuthenticatedSallesRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEnseignantsRoute: AuthenticatedEnseignantsRoute,
+  AuthenticatedMatieresRoute: AuthenticatedMatieresRoute,
   AuthenticatedParametresRoute: AuthenticatedParametresRoute,
+  AuthenticatedSallesRoute: AuthenticatedSallesRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
 }
 

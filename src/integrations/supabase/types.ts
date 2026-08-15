@@ -14,16 +14,506 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      class_subjects: {
+        Row: {
+          class_id: string
+          hours_per_week: number
+          id: string
+          school_id: string
+          subject_id: string
+          teacher_id: string | null
+        }
+        Insert: {
+          class_id: string
+          hours_per_week?: number
+          id?: string
+          school_id: string
+          subject_id: string
+          teacher_id?: string | null
+        }
+        Update: {
+          class_id?: string
+          hours_per_week?: number
+          id?: string
+          school_id?: string
+          subject_id?: string
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_subjects_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_subjects_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_subjects_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          created_at: string
+          headcount: number
+          id: string
+          level: string | null
+          name: string
+          school_id: string
+        }
+        Insert: {
+          created_at?: string
+          headcount?: number
+          id?: string
+          level?: string | null
+          name: string
+          school_id: string
+        }
+        Update: {
+          created_at?: string
+          headcount?: number
+          id?: string
+          level?: string | null
+          name?: string
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          school_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          school_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          school_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          name: string
+          room_type: string
+          school_id: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          name: string
+          room_type?: string
+          school_id: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          name?: string
+          room_type?: string
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schools: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          created_at: string
+          day_end_time: string
+          day_start_time: string
+          days_of_week: string[]
+          id: string
+          name: string
+          slot_duration_minutes: number
+          type: string
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          day_end_time?: string
+          day_start_time?: string
+          days_of_week?: string[]
+          id?: string
+          name: string
+          slot_duration_minutes?: number
+          type?: string
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          day_end_time?: string
+          day_start_time?: string
+          days_of_week?: string[]
+          id?: string
+          name?: string
+          slot_duration_minutes?: number
+          type?: string
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          required_room_type: string | null
+          requires_special_room: boolean
+          school_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          required_room_type?: string | null
+          requires_special_room?: boolean
+          school_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          required_room_type?: string | null
+          requires_special_room?: boolean
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subjects_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_subjects: {
+        Row: {
+          id: string
+          subject_id: string
+          teacher_id: string
+        }
+        Insert: {
+          id?: string
+          subject_id: string
+          teacher_id: string
+        }
+        Update: {
+          id?: string
+          subject_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_subjects_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_unavailabilities: {
+        Row: {
+          day_of_week: string
+          end_time: string
+          id: string
+          reason: string | null
+          start_time: string
+          teacher_id: string
+        }
+        Insert: {
+          day_of_week: string
+          end_time: string
+          id?: string
+          reason?: string | null
+          start_time: string
+          teacher_id: string
+        }
+        Update: {
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          reason?: string | null
+          start_time?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_unavailabilities_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teachers: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          latest_end_time: string | null
+          max_hours_week: number
+          school_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          latest_end_time?: string | null
+          max_hours_week?: number
+          school_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          latest_end_time?: string | null
+          max_hours_week?: number
+          school_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teachers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timetable_entries: {
+        Row: {
+          class_id: string
+          day_of_week: string
+          end_time: string
+          id: string
+          room_id: string | null
+          school_id: string
+          start_time: string
+          subject_id: string
+          teacher_id: string | null
+          timetable_version_id: string
+        }
+        Insert: {
+          class_id: string
+          day_of_week: string
+          end_time: string
+          id?: string
+          room_id?: string | null
+          school_id: string
+          start_time: string
+          subject_id: string
+          teacher_id?: string | null
+          timetable_version_id: string
+        }
+        Update: {
+          class_id?: string
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          room_id?: string | null
+          school_id?: string
+          start_time?: string
+          subject_id?: string
+          teacher_id?: string | null
+          timetable_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetable_entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_timetable_version_id_fkey"
+            columns: ["timetable_version_id"]
+            isOneToOne: false
+            referencedRelation: "timetable_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timetable_versions: {
+        Row: {
+          generated_at: string
+          id: string
+          is_public: boolean
+          label: string
+          public_token: string
+          school_id: string
+          status: string
+        }
+        Insert: {
+          generated_at?: string
+          id?: string
+          is_public?: boolean
+          label?: string
+          public_token?: string
+          school_id: string
+          status?: string
+        }
+        Update: {
+          generated_at?: string
+          id?: string
+          is_public?: boolean
+          label?: string
+          public_token?: string
+          school_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetable_versions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_manage: { Args: never; Returns: boolean }
+      current_school_id: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      time_to_min: { Args: { t: string }; Returns: number }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "gestionnaire" | "enseignant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +640,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "gestionnaire", "enseignant"],
+    },
   },
 } as const

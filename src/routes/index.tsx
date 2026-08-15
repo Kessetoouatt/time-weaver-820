@@ -26,11 +26,11 @@ export const Route = createFileRoute("/")({
         content:
           "Générez en un clic des emplois du temps complets pour toutes vos classes : zéro chevauchement enseignant, classe ou salle. Édition en glisser-déposer et export PDF.",
       },
-      { property: "og:title", content: "EDT Genius — Emplois du temps scolaires sans conflit" },
+      { property: "og:title", content: "EDT Genius — Générateur d'emplois du temps scolaires" },
       {
         property: "og:description",
         content:
-          "Le générateur d'emplois du temps pour écoles, collèges, lycées et universités. Contraintes respectées, conflits impossibles.",
+          "Générez en un clic des emplois du temps complets pour toutes vos classes : zéro chevauchement enseignant, classe ou salle. Édition en glisser-déposer et export PDF.",
       },
     ],
   }),

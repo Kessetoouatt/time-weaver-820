@@ -79,14 +79,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "EDT Genius — Emplois du temps scolaires sans conflit" },
+      { title: "EDT Genius — Générateur d'emplois du temps scolaires" },
       {
         name: "description",
         content:
-          "EDT Genius génère automatiquement les emplois du temps de votre établissement, sans chevauchement pour les enseignants, les classes et les salles.",
+          "Générez en un clic des emplois du temps complets pour toutes vos classes : zéro chevauchement enseignant, classe ou salle. Édition en glisser-déposer et export PDF.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:title", content: "EDT Genius — Générateur d'emplois du temps scolaires" },
+      { name: "twitter:title", content: "EDT Genius — Générateur d'emplois du temps scolaires" },
+      { property: "og:description", content: "Générez en un clic des emplois du temps complets pour toutes vos classes : zéro chevauchement enseignant, classe ou salle. Édition en glisser-déposer et export PDF." },
+      { name: "twitter:description", content: "Générez en un clic des emplois du temps complets pour toutes vos classes : zéro chevauchement enseignant, classe ou salle. Édition en glisser-déposer et export PDF." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2e342d6a818d8efb142c9eaa00ec6b04/id-preview-b8d7aa24--5d189407-bc4c-4311-9d2e-b25bfbe741f2.lovable.app-1786758294681.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2e342d6a818d8efb142c9eaa00ec6b04/id-preview-b8d7aa24--5d189407-bc4c-4311-9d2e-b25bfbe741f2.lovable.app-1786758294681.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

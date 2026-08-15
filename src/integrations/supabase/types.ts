@@ -502,6 +502,19 @@ export type Database = {
     }
     Functions: {
       can_manage: { Args: never; Returns: boolean }
+      create_school_and_join: {
+        Args: {
+          _break_end?: string
+          _break_start?: string
+          _days: string[]
+          _end: string
+          _name: string
+          _slot: number
+          _start: string
+          _type: string
+        }
+        Returns: string
+      }
       current_school_id: { Args: never; Returns: string }
       has_role: {
         Args: {

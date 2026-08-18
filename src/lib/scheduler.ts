@@ -50,9 +50,18 @@ export type GenEntry = {
   end_time: string;
 };
 
+/** A lesson the engine could not place, reported verbatim to the user. */
+export type GenUnplaced = {
+  className: string;
+  subjectName: string;
+  teacherName: string;
+  hours: number;
+};
+
 export type GenResult = {
   ok: boolean;
   entries: GenEntry[];
+  unplaced: GenUnplaced[];
   errors: string[];
   warnings: string[];
 };
@@ -62,7 +71,9 @@ type Lesson = {
   subjectId: string;
   teacherId: string;
   needsRoomType: string | null;
-  label: string;
+  className: string;
+  subjectName: string;
+  teacherName: string;
 };
 
 const hoursLabel = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
@@ -90,7 +101,6 @@ export function checkFeasibility(input: GenInput): string[] {
     );
   }
 
-  // Missing teacher assignment
   for (const cs of input.classSubjects) {
     const className = classById.get(cs.class_id)?.name ?? "Classe inconnue";
     const subjectName = subjectById.get(cs.subject_id)?.name ?? "Matière inconnue";
@@ -102,7 +112,6 @@ export function checkFeasibility(input: GenInput): string[] {
     }
   }
 
-  // Class capacity
   const perClassSlots = new Map<string, number>();
   for (const cs of input.classSubjects) {
     const needed = Math.ceil(cs.hours_per_week / slotHours);
@@ -117,7 +126,6 @@ export function checkFeasibility(input: GenInput): string[] {
     }
   }
 
-  // Teacher load vs availability
   const perTeacherSlots = new Map<string, number>();
   for (const cs of input.classSubjects) {
     if (!cs.teacher_id) continue;
@@ -141,7 +149,6 @@ export function checkFeasibility(input: GenInput): string[] {
     }
   }
 
-  // Special rooms
   const roomTypes = new Set(input.rooms.map((r) => r.room_type));
   for (const cs of input.classSubjects) {
     const subject = subjectById.get(cs.subject_id);
@@ -190,9 +197,38 @@ function isTeacherAvailable(
   return true;
 }
 
+/** Deterministic-per-seed pseudo random generator, so a run is reproducible. */
+function makeRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function shuffle<T>(items: T[], random: () => number): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+  }
+  return copy;
+}
+
+const ATTEMPTS = 40;
+
+/**
+ * Greedy scheduler with multiple randomised attempts.
+ *
+ * Hard guarantee by construction: a teacher, a class and a room are each
+ * written into a given cell at most once, since a lesson is only committed
+ * when every corresponding busy flag is free.
+ */
 export function generateTimetable(input: GenInput): GenResult {
   const errors = checkFeasibility(input);
-  if (errors.length > 0) return { ok: false, entries: [], errors, warnings: [] };
+  if (errors.length > 0) {
+    return { ok: false, entries: [], unplaced: [], errors, warnings: [] };
+  }
 
   const { days, slots, slotMinutes } = input;
   const slotHours = slotMinutes / 60;
@@ -204,7 +240,6 @@ export function generateTimetable(input: GenInput): GenResult {
   const classById = new Map(input.classes.map((c) => [c.id, c]));
   const teacherById = new Map(input.teachers.map((t) => [t.id, t]));
 
-  // Build atomic lessons (one slot each)
   const lessons: Lesson[] = [];
   for (const cs of input.classSubjects) {
     const subject = subjectById.get(cs.subject_id);
@@ -215,12 +250,13 @@ export function generateTimetable(input: GenInput): GenResult {
         subjectId: cs.subject_id,
         teacherId: cs.teacher_id as string,
         needsRoomType: subject?.requires_special_room ? (subject.required_room_type ?? null) : null,
-        label: `${subjectById.get(cs.subject_id)?.name ?? "?"} — ${classById.get(cs.class_id)?.name ?? "?"}`,
+        className: classById.get(cs.class_id)?.name ?? "?",
+        subjectName: subject?.name ?? "?",
+        teacherName: teacherById.get(cs.teacher_id ?? "")?.full_name ?? "Non assigné",
       });
     }
   }
 
-  // Availability masks
   const teacherAvail = new Map<string, boolean[]>();
   for (const teacher of input.teachers) {
     const mask: boolean[] = new Array(cellCount).fill(true);
@@ -232,100 +268,100 @@ export function generateTimetable(input: GenInput): GenResult {
     teacherAvail.set(teacher.id, mask);
   }
 
-  const classBusy = new Map<string, (Lesson | null)[]>();
-  for (const c of input.classes) classBusy.set(c.id, new Array(cellCount).fill(null));
-  const teacherBusy = new Map<string, boolean[]>();
-  for (const t of input.teachers) teacherBusy.set(t.id, new Array(cellCount).fill(false));
-  const roomBusy = new Map<string, boolean[]>();
-  for (const r of input.rooms) roomBusy.set(r.id, new Array(cellCount).fill(false));
-
-  // Heuristic: hardest lessons first (teacher with least room to manoeuvre)
   const teacherLoad = new Map<string, number>();
   for (const l of lessons) teacherLoad.set(l.teacherId, (teacherLoad.get(l.teacherId) ?? 0) + 1);
   const difficulty = (l: Lesson) => {
     const avail = (teacherAvail.get(l.teacherId) ?? []).filter(Boolean).length || 1;
     return (teacherLoad.get(l.teacherId) ?? 0) / avail + (l.needsRoomType ? 0.5 : 0);
   };
-  const ordered = [...lessons].sort((a, b) => difficulty(b) - difficulty(a));
 
-  const assignments: (GenEntry | null)[] = new Array(ordered.length).fill(null);
-  const warnings: string[] = [];
-  let steps = 0;
-  const maxSteps = 400_000;
+  type Attempt = { entries: GenEntry[]; unplaced: Lesson[] };
 
-  const pickRoom = (lesson: Lesson, cell: number): { room: GenRoom | null; ok: boolean } => {
-    if (input.rooms.length === 0) return { room: null, ok: true };
-    if (lesson.needsRoomType) {
-      const candidates = input.rooms.filter(
-        (r) => r.room_type === lesson.needsRoomType && !roomBusy.get(r.id)![cell],
-      );
-      if (candidates.length === 0) return { room: null, ok: false };
-      return { room: candidates[0]!, ok: true };
-    }
-    const headcount = classById.get(lesson.classId)?.headcount ?? 0;
-    const candidates = input.rooms
-      .filter((r) => !roomBusy.get(r.id)![cell] && r.capacity >= headcount)
-      .sort((a, b) => {
-        const aNormal = a.room_type === "normale" ? 0 : 1;
-        const bNormal = b.room_type === "normale" ? 0 : 1;
-        if (aNormal !== bNormal) return aNormal - bNormal;
-        return a.capacity - b.capacity;
-      });
-    // Rooms are a soft resource for ordinary subjects: keep the lesson if none is free.
-    return { room: candidates[0] ?? null, ok: true };
-  };
+  const runAttempt = (seed: number): Attempt => {
+    const random = makeRandom(seed);
+    // Hardest lessons first, ties broken randomly so each attempt explores differently.
+    const ordered = shuffle(lessons, random).sort((a, b) => difficulty(b) - difficulty(a));
 
-  const scoreCell = (lesson: Lesson, cell: number): number => {
-    const d = Math.floor(cell / S);
-    const s = cell % S;
-    let score = 0;
-    const cls = classBusy.get(lesson.classId)!;
-    // Soft: avoid the same subject twice on the same day
-    for (let i = 0; i < S; i += 1) {
-      const other = cls[d * S + i];
-      if (other && other.subjectId === lesson.subjectId) score += 40;
-    }
-    // Soft: compact class day (prefer next to an existing course)
-    const near =
-      (s > 0 && cls[d * S + s - 1]) || (s < S - 1 && cls[d * S + s + 1]) ? -6 : 0;
-    score += near;
-    // Soft: compact teacher day
-    const tb = teacherBusy.get(lesson.teacherId)!;
-    const teacherNear = (s > 0 && tb[d * S + s - 1]) || (s < S - 1 && tb[d * S + s + 1]) ? -6 : 0;
-    score += teacherNear;
-    // Soft: balance load over the week and favour morning slots slightly
-    let dayLoad = 0;
-    for (let i = 0; i < S; i += 1) if (cls[d * S + i]) dayLoad += 1;
-    score += dayLoad * 1.5 + s * 0.4;
-    return score;
-  };
+    const classBusy = new Map<string, (Lesson | null)[]>();
+    for (const c of input.classes) classBusy.set(c.id, new Array(cellCount).fill(null));
+    const teacherBusy = new Map<string, boolean[]>();
+    for (const t of input.teachers) teacherBusy.set(t.id, new Array(cellCount).fill(false));
+    const roomBusy = new Map<string, boolean[]>();
+    for (const r of input.rooms) roomBusy.set(r.id, new Array(cellCount).fill(false));
 
-  const place = (index: number): boolean => {
-    if (index >= ordered.length) return true;
-    if (steps++ > maxSteps) return false;
+    const pickRoom = (lesson: Lesson, cell: number): { room: GenRoom | null; ok: boolean } => {
+      if (input.rooms.length === 0) return { room: null, ok: true };
+      if (lesson.needsRoomType) {
+        const candidates = input.rooms.filter(
+          (r) => r.room_type === lesson.needsRoomType && !roomBusy.get(r.id)![cell],
+        );
+        if (candidates.length === 0) return { room: null, ok: false };
+        return { room: candidates[0]!, ok: true };
+      }
+      const headcount = classById.get(lesson.classId)?.headcount ?? 0;
+      const candidates = input.rooms
+        .filter((r) => !roomBusy.get(r.id)![cell] && r.capacity >= headcount)
+        .sort((a, b) => {
+          const aNormal = a.room_type === "normale" ? 0 : 1;
+          const bNormal = b.room_type === "normale" ? 0 : 1;
+          if (aNormal !== bNormal) return aNormal - bNormal;
+          return a.capacity - b.capacity;
+        });
+      return { room: candidates[0] ?? null, ok: true };
+    };
 
-    const lesson = ordered[index]!;
-    const cls = classBusy.get(lesson.classId)!;
-    const tb = teacherBusy.get(lesson.teacherId)!;
-    const avail = teacherAvail.get(lesson.teacherId)!;
-
-    const candidates: { cell: number; score: number }[] = [];
-    for (let cell = 0; cell < cellCount; cell += 1) {
-      if (cls[cell] || tb[cell] || !avail[cell]) continue;
-      if (lesson.needsRoomType && !pickRoom(lesson, cell).ok) continue;
-      candidates.push({ cell, score: scoreCell(lesson, cell) });
-    }
-    candidates.sort((a, b) => a.score - b.score);
-
-    for (const candidate of candidates) {
-      const { cell } = candidate;
-      const { room } = pickRoom(lesson, cell);
-      cls[cell] = lesson;
-      tb[cell] = true;
-      if (room) roomBusy.get(room.id)![cell] = true;
+    const scoreCell = (lesson: Lesson, cell: number): number => {
       const d = Math.floor(cell / S);
       const s = cell % S;
-      assignments[index] = {
+      let score = random() * 2;
+      const cls = classBusy.get(lesson.classId)!;
+      for (let i = 0; i < S; i += 1) {
+        const other = cls[d * S + i];
+        if (other && other.subjectId === lesson.subjectId) score += 40;
+      }
+      const near = (s > 0 && cls[d * S + s - 1]) || (s < S - 1 && cls[d * S + s + 1]) ? -6 : 0;
+      score += near;
+      const tb = teacherBusy.get(lesson.teacherId)!;
+      const teacherNear = (s > 0 && tb[d * S + s - 1]) || (s < S - 1 && tb[d * S + s + 1]) ? -6 : 0;
+      score += teacherNear;
+      let dayLoad = 0;
+      for (let i = 0; i < S; i += 1) if (cls[d * S + i]) dayLoad += 1;
+      score += dayLoad * 1.5 + s * 0.4;
+      return score;
+    };
+
+    const entries: GenEntry[] = [];
+    const unplaced: Lesson[] = [];
+
+    for (const lesson of ordered) {
+      const cls = classBusy.get(lesson.classId);
+      const tb = teacherBusy.get(lesson.teacherId);
+      const avail = teacherAvail.get(lesson.teacherId);
+      if (!cls || !tb || !avail) {
+        unplaced.push(lesson);
+        continue;
+      }
+
+      let best: { cell: number; score: number } | null = null;
+      for (let cell = 0; cell < cellCount; cell += 1) {
+        if (cls[cell] || tb[cell] || !avail[cell]) continue;
+        if (lesson.needsRoomType && !pickRoom(lesson, cell).ok) continue;
+        const score = scoreCell(lesson, cell);
+        if (!best || score < best.score) best = { cell, score };
+      }
+
+      if (!best) {
+        unplaced.push(lesson);
+        continue;
+      }
+
+      const { room } = pickRoom(lesson, best.cell);
+      cls[best.cell] = lesson;
+      tb[best.cell] = true;
+      if (room) roomBusy.get(room.id)![best.cell] = true;
+      const d = Math.floor(best.cell / S);
+      const s = best.cell % S;
+      entries.push({
         class_id: lesson.classId,
         subject_id: lesson.subjectId,
         teacher_id: lesson.teacherId,
@@ -333,63 +369,58 @@ export function generateTimetable(input: GenInput): GenResult {
         day_of_week: days[d]!,
         start_time: slots[s]!.start,
         end_time: slots[s]!.end,
-      };
-      if (place(index + 1)) return true;
-      cls[cell] = null;
-      tb[cell] = false;
-      if (room) roomBusy.get(room.id)![cell] = false;
-      assignments[index] = null;
-      if (steps > maxSteps) return false;
+      });
     }
-    return false;
+
+    return { entries, unplaced };
   };
 
-  const solved = place(0);
-
-  if (!solved) {
-    const blocked = ordered.find((_, i) => assignments[i] === null);
-    const detail = blocked
-      ? `Le blocage survient sur « ${blocked.label} » (enseignant : ${teacherById.get(blocked.teacherId)?.full_name ?? "?"}).`
-      : "";
-    return {
-      ok: false,
-      entries: [],
-      errors: [
-        `Aucune solution complète n'a été trouvée avec les contraintes actuelles. ${detail} Pistes : élargir la plage horaire, réduire les indisponibilités, ajouter une salle du type requis ou répartir les heures sur un enseignant supplémentaire.`,
-      ],
-      warnings: [],
-    };
+  let best: Attempt | null = null;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+    const result = runAttempt(attempt * 7919 + 104729);
+    if (!best || result.unplaced.length < best.unplaced.length) best = result;
+    if (best.unplaced.length === 0) break;
   }
 
-  const entries = assignments.filter((a): a is GenEntry => a !== null);
+  const attempt = best ?? { entries: [], unplaced: [] };
+  const entries = attempt.entries;
 
-  // Soft-constraint report
+  const unplaced: GenUnplaced[] = [];
+  for (const lesson of attempt.unplaced) {
+    const existing = unplaced.find(
+      (u) =>
+        u.className === lesson.className &&
+        u.subjectName === lesson.subjectName &&
+        u.teacherName === lesson.teacherName,
+    );
+    if (existing) existing.hours += slotHours;
+    else
+      unplaced.push({
+        className: lesson.className,
+        subjectName: lesson.subjectName,
+        teacherName: lesson.teacherName,
+        hours: slotHours,
+      });
+  }
+
+  const warnings: string[] = [];
   for (const teacher of input.teachers) {
     const gaps = countGaps(entries.filter((e) => e.teacher_id === teacher.id), days, slots);
-    if (gaps > 0) {
-      warnings.push(`${teacher.full_name} a ${gaps} heure(s) de trou dans son emploi du temps.`);
-    }
+    if (gaps > 0) warnings.push(`${teacher.full_name} a ${gaps} heure(s) de trou dans son emploi du temps.`);
   }
   for (const cls of input.classes) {
     const classEntries = entries.filter((e) => e.class_id === cls.id);
     const gaps = countGaps(classEntries, days, slots);
     if (gaps > 0) warnings.push(`La classe ${cls.name} a ${gaps} heure(s) de trou.`);
-    const perDaySubject = new Map<string, number>();
-    for (const e of classEntries) {
-      const key = `${e.day_of_week}|${e.subject_id}`;
-      perDaySubject.set(key, (perDaySubject.get(key) ?? 0) + 1);
-    }
-    for (const [key, count] of perDaySubject) {
-      if (count > 1) {
-        const [day, subjectId] = key.split("|");
-        warnings.push(
-          `${subjectById.get(subjectId!)?.name ?? "Matière"} apparaît ${count} fois le ${day} en ${cls.name}.`,
-        );
-      }
-    }
   }
 
-  return { ok: true, entries, errors: [], warnings: warnings.slice(0, 20) };
+  return {
+    ok: unplaced.length === 0,
+    entries,
+    unplaced,
+    errors: [],
+    warnings: warnings.slice(0, 20),
+  };
 }
 
 function countGaps(entries: GenEntry[], days: string[], slots: Slot[]): number {

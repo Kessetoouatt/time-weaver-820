@@ -3,12 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 const STORAGE_KEY = "edt-theme";
 
 export function useTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const next = stored === "dark" || stored === "light" ? stored : prefersDark ? "dark" : "light";
+    // Station-board look: dark is the product default.
+    const next = stored === "dark" || stored === "light" ? stored : "dark";
     setTheme(next);
     document.documentElement.classList.toggle("dark", next === "dark");
   }, []);

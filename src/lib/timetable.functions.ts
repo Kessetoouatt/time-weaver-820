@@ -20,7 +20,13 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
       .maybeSingle();
     const schoolId = profile?.school_id;
     if (!schoolId) {
-      return { ok: false as const, errors: ["Aucun établissement rattaché à votre compte."], warnings: [], versionId: null };
+      return {
+        ok: false as const,
+        errors: ["Aucun établissement rattaché à votre compte."],
+        warnings: [],
+        unplaced: [],
+        versionId: null,
+      };
     }
 
     const [school, classes, subjects, teachers, rooms, classSubjects, unavailabilities] =
@@ -35,7 +41,13 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
       ]);
 
     if (school.error || !school.data) {
-      return { ok: false as const, errors: ["Établissement introuvable."], warnings: [], versionId: null };
+      return {
+        ok: false as const,
+        errors: ["Établissement introuvable."],
+        warnings: [],
+        unplaced: [],
+        versionId: null,
+      };
     }
 
     const slots = buildSlots(school.data);
@@ -51,8 +63,14 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
       classSubjects: classSubjects.data ?? [],
     });
 
-    if (!result.ok) {
-      return { ok: false as const, errors: result.errors, warnings: result.warnings, versionId: null };
+    if (result.errors.length > 0) {
+      return {
+        ok: false as const,
+        errors: result.errors,
+        warnings: result.warnings,
+        unplaced: [],
+        versionId: null,
+      };
     }
 
     const { count } = await supabase
@@ -75,6 +93,7 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
         ok: false as const,
         errors: [`Impossible d'enregistrer la version : ${versionError?.message ?? "erreur inconnue"}`],
         warnings: [],
+        unplaced: [],
         versionId: null,
       };
     }
@@ -92,11 +111,18 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
         ok: false as const,
         errors: [`Conflit détecté à l'enregistrement : ${entriesError.message}`],
         warnings: [],
+        unplaced: [],
         versionId: null,
       };
     }
 
-    return { ok: true as const, errors: [], warnings: result.warnings, versionId: version.id };
+    return {
+      ok: result.ok,
+      errors: [],
+      warnings: result.warnings,
+      unplaced: result.unplaced,
+      versionId: version.id,
+    };
   });
 
 const moveSchema = z.object({

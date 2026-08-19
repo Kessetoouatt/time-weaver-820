@@ -84,6 +84,8 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
         school_id: schoolId,
         label: data.label?.trim() || `Génération v${(count ?? 0) + 1}`,
         status: "brouillon",
+        success: result.ok,
+        unplaced_count: result.unplaced.length,
       })
       .select()
       .single();

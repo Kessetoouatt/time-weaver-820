@@ -66,9 +66,9 @@ function SettingsPage() {
     setStart(shortTime(school.day_start_time));
     setEnd(shortTime(school.day_end_time));
     setSlot(school.slot_duration_minutes);
-    setHasBreak(!!school.break_start_time);
-    if (school.break_start_time) setBreakStart(shortTime(school.break_start_time));
-    if (school.break_end_time) setBreakEnd(shortTime(school.break_end_time));
+    setHasBreak(school.lunch_enabled && !!school.lunch_start_time);
+    if (school.lunch_start_time) setBreakStart(shortTime(school.lunch_start_time));
+    if (school.lunch_end_time) setBreakEnd(shortTime(school.lunch_end_time));
   }, [school]);
 
   const slots = buildSlots({
@@ -76,8 +76,8 @@ function SettingsPage() {
     day_start_time: `${start}:00`,
     day_end_time: `${end}:00`,
     slot_duration_minutes: slot,
-    break_start_time: hasBreak ? `${breakStart}:00` : null,
-    break_end_time: hasBreak ? `${breakEnd}:00` : null,
+    lunch_start_time: hasBreak ? `${breakStart}:00` : null,
+    lunch_end_time: hasBreak ? `${breakEnd}:00` : null,
   });
 
   const save = async (event: React.FormEvent) => {
@@ -101,8 +101,9 @@ function SettingsPage() {
           day_start_time: `${start}:00`,
           day_end_time: `${end}:00`,
           slot_duration_minutes: slot,
-          break_start_time: hasBreak ? `${breakStart}:00` : null,
-          break_end_time: hasBreak ? `${breakEnd}:00` : null,
+          lunch_enabled: hasBreak,
+          lunch_start_time: hasBreak ? `${breakStart}:00` : null,
+          lunch_end_time: hasBreak ? `${breakEnd}:00` : null,
         })
         .eq("id", school.id);
       setBusy(false);

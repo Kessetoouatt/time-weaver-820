@@ -174,37 +174,40 @@ export type Database = {
       }
       schools: {
         Row: {
-          break_end_time: string | null
-          break_start_time: string | null
           created_at: string
           day_end_time: string
           day_start_time: string
           days_of_week: string[]
           id: string
+          lunch_enabled: boolean
+          lunch_end_time: string | null
+          lunch_start_time: string | null
           name: string
           slot_duration_minutes: number
           type: string
         }
         Insert: {
-          break_end_time?: string | null
-          break_start_time?: string | null
           created_at?: string
           day_end_time?: string
           day_start_time?: string
           days_of_week?: string[]
           id?: string
+          lunch_enabled?: boolean
+          lunch_end_time?: string | null
+          lunch_start_time?: string | null
           name: string
           slot_duration_minutes?: number
           type?: string
         }
         Update: {
-          break_end_time?: string | null
-          break_start_time?: string | null
           created_at?: string
           day_end_time?: string
           day_start_time?: string
           days_of_week?: string[]
           id?: string
+          lunch_enabled?: boolean
+          lunch_end_time?: string | null
+          lunch_start_time?: string | null
           name?: string
           slot_duration_minutes?: number
           type?: string
@@ -214,6 +217,7 @@ export type Database = {
       subjects: {
         Row: {
           color: string
+          color_index: number
           created_at: string
           id: string
           name: string
@@ -223,6 +227,7 @@ export type Database = {
         }
         Insert: {
           color?: string
+          color_index?: number
           created_at?: string
           id?: string
           name: string
@@ -232,6 +237,7 @@ export type Database = {
         }
         Update: {
           color?: string
+          color_index?: number
           created_at?: string
           id?: string
           name?: string
@@ -449,6 +455,8 @@ export type Database = {
           public_token: string
           school_id: string
           status: string
+          success: boolean
+          unplaced_count: number
         }
         Insert: {
           generated_at?: string
@@ -458,6 +466,8 @@ export type Database = {
           public_token?: string
           school_id: string
           status?: string
+          success?: boolean
+          unplaced_count?: number
         }
         Update: {
           generated_at?: string
@@ -467,6 +477,8 @@ export type Database = {
           public_token?: string
           school_id?: string
           status?: string
+          success?: boolean
+          unplaced_count?: number
         }
         Relationships: [
           {

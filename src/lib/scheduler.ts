@@ -136,13 +136,8 @@ export function checkFeasibility(input: GenInput): string[] {
     const teacher = teacherById.get(teacherId);
     if (!teacher) continue;
     const free = countFreeCells(input, teacherId);
-    const neededHours = needed * slotHours;
-    if (neededHours > teacher.max_hours_week) {
-      errors.push(
-        `${teacher.full_name} est sollicité·e sur ${hoursLabel(neededHours)} alors que son maximum hebdomadaire est de ${hoursLabel(teacher.max_hours_week)}.`,
-      );
-    }
     if (needed > free) {
+      const neededHours = needed * slotHours;
       errors.push(
         `${teacher.full_name} est sollicité·e sur ${hoursLabel(neededHours)} alors qu'il·elle n'est disponible que ${hoursLabel(free * slotHours)} (indisponibilités et préférences horaires prises en compte).`,
       );

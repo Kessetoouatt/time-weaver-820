@@ -32,8 +32,9 @@ export type SchoolConfig = {
   day_start_time: string;
   day_end_time: string;
   slot_duration_minutes: number;
-  break_start_time?: string | null;
-  break_end_time?: string | null;
+  lunch_enabled?: boolean | null;
+  lunch_start_time?: string | null;
+  lunch_end_time?: string | null;
 };
 
 /** Builds the ordered list of teachable slots for a school configuration. */
@@ -41,8 +42,9 @@ export function buildSlots(school: SchoolConfig): Slot[] {
   const start = toMinutes(school.day_start_time);
   const end = toMinutes(school.day_end_time);
   const duration = Math.max(15, school.slot_duration_minutes);
-  const breakStart = school.break_start_time ? toMinutes(school.break_start_time) : null;
-  const breakEnd = school.break_end_time ? toMinutes(school.break_end_time) : null;
+  const lunchOn = school.lunch_enabled !== false;
+  const breakStart = lunchOn && school.lunch_start_time ? toMinutes(school.lunch_start_time) : null;
+  const breakEnd = lunchOn && school.lunch_end_time ? toMinutes(school.lunch_end_time) : null;
 
   const slots: Slot[] = [];
   for (let t = start; t + duration <= end; t += duration) {

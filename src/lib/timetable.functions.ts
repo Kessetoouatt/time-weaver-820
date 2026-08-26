@@ -39,6 +39,11 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
         supabase.from("teacher_unavailabilities").select("*"),
       ]);
 
+    const { data: breaks } = await supabase
+      .from("school_breaks")
+      .select("*")
+      .eq("school_id", schoolId);
+
     if (school.error || !school.data) {
       return {
         ok: false as const,
@@ -49,7 +54,7 @@ export const generateTimetableFn = createServerFn({ method: "POST" })
       };
     }
 
-    const slots = buildSlots(school.data);
+    const slots = buildSlots({ ...school.data, breaks: breaks ?? [] });
     const result = generateTimetable({
       days: school.data.days_of_week,
       slots,

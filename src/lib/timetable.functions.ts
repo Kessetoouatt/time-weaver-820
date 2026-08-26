@@ -182,21 +182,9 @@ export const moveEntryFn = createServerFn({ method: "POST" })
 export const getPublicTimetableFn = createServerFn({ method: "GET" })
   .inputValidator((input: { token: string }) => z.object({ token: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-    const url = process.env["SUPABASE_URL"]!;
-    const client = createClient<Database>(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: {
-        fetch: (input, init) => {
-          const headers = new Headers(init?.headers);
-          if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-            headers.delete("Authorization");
-          }
-          headers.set("apikey", key);
-          return fetch(input, { ...init, headers });
-        },
-      },
-    });
+    // Public share links are resolved server-side: anonymous users have no
+    // direct table access, and only non-sensitive columns are returned.
+    const { supabaseAdmin: client } = await import("@/integrations/supabase/client.server");
 
     const { data: version } = await client
       .from("timetable_versions")
@@ -204,6 +192,7 @@ export const getPublicTimetableFn = createServerFn({ method: "GET" })
       .eq("public_token", data.token)
       .eq("is_public", true)
       .maybeSingle();
+
 
     if (!version) return null;
 

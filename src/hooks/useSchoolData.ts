@@ -132,12 +132,21 @@ export type TimetableEntry = {
   end_time: string;
 };
 
+export type SchoolBreak = {
+  id: string;
+  school_id: string;
+  label: string;
+  start_time: string;
+  end_time: string;
+};
+
 export const useTeachers = listHook<Teacher>("teachers", "*", "full_name");
 export const useSubjects = listHook<Subject>("subjects", "*", "name");
 export const useClasses = listHook<ClassGroup>("classes", "*", "name");
 export const useRooms = listHook<Room>("rooms", "*", "name");
 export const useClassSubjects = listHook<ClassSubject>("class_subjects", "*");
 export const useVersions = listHook<TimetableVersion>("timetable_versions", "*");
+export const useSchoolBreaks = listHook<SchoolBreak>("school_breaks", "*", "start_time");
 
 export function useUnavailabilities() {
   const { data: profile } = useProfile();

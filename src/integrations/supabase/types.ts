@@ -172,45 +172,104 @@ export type Database = {
           },
         ]
       }
+      school_breaks: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          label: string
+          school_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          label?: string
+          school_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          label?: string
+          school_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_breaks_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schools: {
         Row: {
+          address: string | null
           created_at: string
           day_end_time: string
           day_start_time: string
           days_of_week: string[]
+          email: string | null
+          head_name: string | null
           id: string
+          logo_url: string | null
           lunch_enabled: boolean
           lunch_end_time: string | null
           lunch_start_time: string | null
           name: string
+          phone: string | null
+          reference_code: string | null
           slot_duration_minutes: number
           type: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string
           day_end_time?: string
           day_start_time?: string
           days_of_week?: string[]
+          email?: string | null
+          head_name?: string | null
           id?: string
+          logo_url?: string | null
           lunch_enabled?: boolean
           lunch_end_time?: string | null
           lunch_start_time?: string | null
           name: string
+          phone?: string | null
+          reference_code?: string | null
           slot_duration_minutes?: number
           type?: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string
           day_end_time?: string
           day_start_time?: string
           days_of_week?: string[]
+          email?: string | null
+          head_name?: string | null
           id?: string
+          logo_url?: string | null
           lunch_enabled?: boolean
           lunch_end_time?: string | null
           lunch_start_time?: string | null
           name?: string
+          phone?: string | null
+          reference_code?: string | null
           slot_duration_minutes?: number
           type?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -534,6 +593,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      seed_default_subjects: {
+        Args: { _school_id: string }
+        Returns: undefined
       }
       time_to_min: { Args: { t: string }; Returns: number }
     }

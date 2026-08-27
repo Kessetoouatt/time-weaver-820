@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ListPlus, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCrud } from "@/components/app/CrudHelpers";
 import { useProfile, useSubjects } from "@/hooks/useSchoolData";
+import { DEFAULT_SUBJECTS, SUBJECT_PALETTE } from "@/lib/timetable";
 
 export const Route = createFileRoute("/_authenticated/matieres")({
   head: () => ({
@@ -29,7 +31,34 @@ function SubjectsPage() {
   const { data: subjects = [] } = useSubjects();
   const crud = useCrud("subjects");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", color: "#2563eb", requires_special_room: false, required_room_type: "" });
+  const nextColor = SUBJECT_PALETTE[subjects.length % SUBJECT_PALETTE.length] ?? "#2563eb";
+  const [form, setForm] = useState({ name: "", color: "", requires_special_room: false, required_room_type: "" });
+  const [seeding, setSeeding] = useState(false);
+
+  const seedDefaults = async () => {
+    setSeeding(true);
+    const existing = new Set(subjects.map((s) => s.name.toLowerCase()));
+    const missing = DEFAULT_SUBJECTS.filter((d) => !existing.has(d.toLowerCase()));
+    if (missing.length === 0) {
+      setSeeding(false);
+      toast.info("Toutes les matières standard sont déjà présentes.");
+      return;
+    }
+    let index = subjects.length;
+    for (const name of missing) {
+      await crud.create({
+        name,
+        color: SUBJECT_PALETTE[index % SUBJECT_PALETTE.length] ?? "#2563eb",
+        color_index: index % SUBJECT_PALETTE.length,
+        requires_special_room: false,
+        required_room_type: null,
+        school_id: profile!.school_id,
+      });
+      index += 1;
+    }
+    setSeeding(false);
+    toast.success(`${missing.length} matières ajoutées.`);
+  };
 
   return (
     <div className="space-y-6">
@@ -38,6 +67,10 @@ function SubjectsPage() {
           <h1 className="text-2xl font-bold">Matières</h1>
           <p className="text-sm text-muted-foreground">Couleur d'affichage et contrainte de salle.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" disabled={seeding || !profile?.school_id} onClick={seedDefaults}>
+          <ListPlus className="size-4" /> Matières standard
+        </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Ajouter</Button>
@@ -48,14 +81,17 @@ function SubjectsPage() {
               className="space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
+                const color: string = form.color || nextColor;
+                const paletteIndex = SUBJECT_PALETTE.indexOf(color);
                 const ok = await crud.create({
                   name: form.name,
-                  color: form.color,
+                  color,
+                  color_index: paletteIndex >= 0 ? paletteIndex : subjects.length % SUBJECT_PALETTE.length,
                   requires_special_room: form.requires_special_room,
                   required_room_type: form.requires_special_room ? form.required_room_type || null : null,
                   school_id: profile!.school_id,
                 });
-                if (ok) { setOpen(false); setForm({ name: "", color: "#2563eb", requires_special_room: false, required_room_type: "" }); }
+                if (ok) { setOpen(false); setForm({ name: "", color: "", requires_special_room: false, required_room_type: "" }); }
               }}
             >
               <div className="space-y-2">
@@ -63,8 +99,8 @@ function SubjectsPage() {
                 <Input id="sname" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="scolor">Couleur</Label>
-                <Input id="scolor" type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+                <Label htmlFor="scolor">Couleur (attribuée automatiquement)</Label>
+                <Input id="scolor" type="color" value={form.color || nextColor} onChange={(e) => setForm({ ...form, color: e.target.value })} />
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={form.requires_special_room} onCheckedChange={(c) => setForm({ ...form, requires_special_room: !!c })} />
@@ -80,6 +116,7 @@ function SubjectsPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>

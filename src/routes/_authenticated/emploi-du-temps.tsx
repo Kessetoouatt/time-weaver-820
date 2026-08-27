@@ -14,6 +14,7 @@ import {
   useEntries,
   useRooms,
   useSchool,
+  useSchoolBreaks,
   useSubjects,
   useTeachers,
   useVersions,
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/emploi-du-temps")({
 function TimetablePage() {
   const queryClient = useQueryClient();
   const { data: school } = useSchool();
+  const { data: schoolBreaks = [] } = useSchoolBreaks();
   const { data: versions = [] } = useVersions();
   const { data: classes = [] } = useClasses();
   const { data: subjects = [] } = useSubjects();
@@ -61,7 +63,7 @@ function TimetablePage() {
   const generate = useServerFn(generateTimetableFn);
   const move = useServerFn(moveEntryFn);
 
-  const slots = school ? buildSlots(school) : [];
+  const slots = school ? buildSlots({ ...school, breaks: schoolBreaks }) : [];
   const days = school?.days_of_week ?? [];
 
   const visibleEntries = useMemo(

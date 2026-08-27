@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +13,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCrud } from "@/components/app/CrudHelpers";
-import { useClassSubjects, useClasses, useProfile, useSubjects, useTeachers } from "@/hooks/useSchoolData";
+import {
+  useClassSubjects,
+  useClasses,
+  useEntries,
+  useProfile,
+  useSchool,
+  useSchoolBreaks,
+  useSubjects,
+  useTeachers,
+  useVersions,
+} from "@/hooks/useSchoolData";
+import { buildSlots, shortTime } from "@/lib/timetable";
+import { generateTimetableFn } from "@/lib/timetable.functions";
 
 export const Route = createFileRoute("/_authenticated/classes")({
   head: () => ({
@@ -40,6 +55,39 @@ function ClassesPage() {
 
   const activeClass = classes.find((c) => c.id === selected) ?? classes[0] ?? null;
 
+  const queryClient = useQueryClient();
+  const { data: school } = useSchool();
+  const { data: schoolBreaks = [] } = useSchoolBreaks();
+  const { data: versions = [] } = useVersions();
+  const latestVersion = [...versions].sort((a, b) => b.generated_at.localeCompare(a.generated_at))[0] ?? null;
+  const { data: entries = [] } = useEntries(latestVersion?.id ?? null);
+  const generate = useServerFn(generateTimetableFn);
+  const [generating, setGenerating] = useState(false);
+
+  const slots = school ? buildSlots({ ...school, breaks: schoolBreaks }) : [];
+  const days = school?.days_of_week ?? [];
+  const classEntries = entries.filter((e) => e.class_id === activeClass?.id);
+
+  /** Régénère immédiatement l'emploi du temps dès qu'un programme de classe change. */
+  const regenerate = async (silent = false) => {
+    setGenerating(true);
+    try {
+      const result = await generate({ data: { label: `Auto ${new Date().toLocaleString("fr-FR")}` } });
+      if (result.ok) {
+        if (!silent) toast.success("Emploi du temps régénéré.");
+      } else if (result.versionId) {
+        toast.warning(`Emploi du temps partiel : ${result.unplaced.length} cours non placés.`);
+      } else if (!silent) {
+        toast.error(result.errors[0] ?? "Génération impossible pour l'instant.");
+      }
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      if (!silent) toast.error(error instanceof Error ? error.message : "Génération impossible.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -47,6 +95,10 @@ function ClassesPage() {
           <h1 className="text-2xl font-bold">Classes</h1>
           <p className="text-sm text-muted-foreground">Effectifs et programme hebdomadaire.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" disabled={generating || classes.length === 0} onClick={() => regenerate()}>
+          {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Générer maintenant
+        </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Ajouter</Button>
@@ -84,6 +136,7 @@ function ClassesPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -131,7 +184,10 @@ function ClassesPage() {
                       teacher_id: assign.teacher_id || null,
                       hours_per_week: Number(assign.hours_per_week),
                     });
-                    if (ok) setAssign({ subject_id: "", teacher_id: "", hours_per_week: 2 });
+                    if (ok) {
+                      setAssign({ subject_id: "", teacher_id: "", hours_per_week: 2 });
+                      void regenerate();
+                    }
                   }}
                 >
                   <Select value={assign.subject_id} onValueChange={(v) => setAssign({ ...assign, subject_id: v })}>
@@ -174,7 +230,7 @@ function ClassesPage() {
                         </TableCell>
                         <TableCell>{cs.hours_per_week}</TableCell>
                         <TableCell className="text-right">
-                          <Button size="icon" variant="ghost" onClick={() => csCrud.remove(cs.id)}>
+                          <Button size="icon" variant="ghost" onClick={async () => { const ok = await csCrud.remove(cs.id); if (ok) void regenerate(true); }}>
                             <Trash2 className="size-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -182,6 +238,59 @@ function ClassesPage() {
                     ))}
                   </TableBody>
                 </Table>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    Emploi du temps de {activeClass.name}
+                    {latestVersion ? ` — ${latestVersion.label}` : ""}
+                  </p>
+                  {slots.length === 0 || days.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Configurez la semaine type de l'établissement.</p>
+                  ) : classEntries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Aucun cours placé pour cette classe : affectez des matières puis générez.
+                    </p>
+                  ) : (
+                    <div className="overflow-auto">
+                      <table className="w-full min-w-[560px] border-collapse text-xs">
+                        <thead>
+                          <tr>
+                            <th className="w-20 border border-border bg-secondary p-1.5 uppercase tracking-widest">Horaire</th>
+                            {days.map((day) => (
+                              <th key={day} className="border border-border bg-secondary p-1.5 uppercase tracking-widest">
+                                {day}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {slots.map((slot) => (
+                            <tr key={slot.start}>
+                              <td className="board-time border border-border p-1.5 text-center text-primary">
+                                {shortTime(slot.start)}
+                              </td>
+                              {days.map((day) => {
+                                const entry = classEntries.find(
+                                  (e) => e.day_of_week === day && shortTime(e.start_time) === shortTime(slot.start),
+                                );
+                                const subject = subjects.find((sub) => sub.id === entry?.subject_id);
+                                return (
+                                  <td key={day} className="h-10 border border-border p-1 align-top">
+                                    {entry ? (
+                                      <span className="font-medium" style={{ color: subject?.color ?? undefined }}>
+                                        {subject?.name}
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">Créez une classe pour définir son programme.</p>

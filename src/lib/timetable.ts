@@ -100,3 +100,18 @@ export const SUBJECT_PALETTE = [
   "#65a30d",
   "#ea580c",
 ];
+
+export const DEFAULT_SUBJECTS = [
+  "Mathématiques",
+  "Physique-Chimie",
+  "Anglais",
+  "Français",
+  "Philosophie",
+  "Histoire-Géographie",
+  "EPS",
+  "Espagnol",
+  "Allemand",
+  "Musique",
+  "Arts plastiques",
+  "SVT",
+];

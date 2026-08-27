@@ -19,6 +19,7 @@ import {
   useEntries,
   useProfile,
   useSchool,
+  useSchoolBreaks,
   useSubjects,
   useTeachers,
   useVersions,
@@ -56,13 +57,14 @@ function ClassesPage() {
 
   const queryClient = useQueryClient();
   const { data: school } = useSchool();
+  const { data: schoolBreaks = [] } = useSchoolBreaks();
   const { data: versions = [] } = useVersions();
   const latestVersion = [...versions].sort((a, b) => b.generated_at.localeCompare(a.generated_at))[0] ?? null;
   const { data: entries = [] } = useEntries(latestVersion?.id ?? null);
   const generate = useServerFn(generateTimetableFn);
   const [generating, setGenerating] = useState(false);
 
-  const slots = school ? buildSlots(school) : [];
+  const slots = school ? buildSlots({ ...school, breaks: schoolBreaks }) : [];
   const days = school?.days_of_week ?? [];
   const classEntries = entries.filter((e) => e.class_id === activeClass?.id);
 
@@ -228,7 +230,7 @@ function ClassesPage() {
                         </TableCell>
                         <TableCell>{cs.hours_per_week}</TableCell>
                         <TableCell className="text-right">
-                          <Button size="icon" variant="ghost" onClick={() => csCrud.remove(cs.id)}>
+                          <Button size="icon" variant="ghost" onClick={async () => { const ok = await csCrud.remove(cs.id); if (ok) void regenerate(true); }}>
                             <Trash2 className="size-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -236,6 +238,59 @@ function ClassesPage() {
                     ))}
                   </TableBody>
                 </Table>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    Emploi du temps de {activeClass.name}
+                    {latestVersion ? ` — ${latestVersion.label}` : ""}
+                  </p>
+                  {slots.length === 0 || days.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Configurez la semaine type de l'établissement.</p>
+                  ) : classEntries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Aucun cours placé pour cette classe : affectez des matières puis générez.
+                    </p>
+                  ) : (
+                    <div className="overflow-auto">
+                      <table className="w-full min-w-[560px] border-collapse text-xs">
+                        <thead>
+                          <tr>
+                            <th className="w-20 border border-border bg-secondary p-1.5 uppercase tracking-widest">Horaire</th>
+                            {days.map((day) => (
+                              <th key={day} className="border border-border bg-secondary p-1.5 uppercase tracking-widest">
+                                {day}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {slots.map((slot) => (
+                            <tr key={slot.start}>
+                              <td className="board-time border border-border p-1.5 text-center text-primary">
+                                {shortTime(slot.start)}
+                              </td>
+                              {days.map((day) => {
+                                const entry = classEntries.find(
+                                  (e) => e.day_of_week === day && shortTime(e.start_time) === shortTime(slot.start),
+                                );
+                                const subject = subjects.find((sub) => sub.id === entry?.subject_id);
+                                return (
+                                  <td key={day} className="h-10 border border-border p-1 align-top">
+                                    {entry ? (
+                                      <span className="font-medium" style={{ color: subject?.color ?? undefined }}>
+                                        {subject?.name}
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">Créez une classe pour définir son programme.</p>

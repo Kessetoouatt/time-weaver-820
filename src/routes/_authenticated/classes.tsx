@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCrud } from "@/components/app/CrudHelpers";
-import { useClassSubjects, useClasses, useProfile, useSubjects, useTeachers } from "@/hooks/useSchoolData";
+import {
+  useClassSubjects,
+  useClasses,
+  useEntries,
+  useProfile,
+  useSchool,
+  useSubjects,
+  useTeachers,
+  useVersions,
+} from "@/hooks/useSchoolData";
+import { buildSlots, shortTime } from "@/lib/timetable";
+import { generateTimetableFn } from "@/lib/timetable.functions";
 
 export const Route = createFileRoute("/_authenticated/classes")({
   head: () => ({
@@ -40,6 +54,38 @@ function ClassesPage() {
 
   const activeClass = classes.find((c) => c.id === selected) ?? classes[0] ?? null;
 
+  const queryClient = useQueryClient();
+  const { data: school } = useSchool();
+  const { data: versions = [] } = useVersions();
+  const latestVersion = [...versions].sort((a, b) => b.generated_at.localeCompare(a.generated_at))[0] ?? null;
+  const { data: entries = [] } = useEntries(latestVersion?.id ?? null);
+  const generate = useServerFn(generateTimetableFn);
+  const [generating, setGenerating] = useState(false);
+
+  const slots = school ? buildSlots(school) : [];
+  const days = school?.days_of_week ?? [];
+  const classEntries = entries.filter((e) => e.class_id === activeClass?.id);
+
+  /** Régénère immédiatement l'emploi du temps dès qu'un programme de classe change. */
+  const regenerate = async (silent = false) => {
+    setGenerating(true);
+    try {
+      const result = await generate({ data: { label: `Auto ${new Date().toLocaleString("fr-FR")}` } });
+      if (result.ok) {
+        if (!silent) toast.success("Emploi du temps régénéré.");
+      } else if (result.versionId) {
+        toast.warning(`Emploi du temps partiel : ${result.unplaced.length} cours non placés.`);
+      } else if (!silent) {
+        toast.error(result.errors[0] ?? "Génération impossible pour l'instant.");
+      }
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      if (!silent) toast.error(error instanceof Error ? error.message : "Génération impossible.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -47,6 +93,10 @@ function ClassesPage() {
           <h1 className="text-2xl font-bold">Classes</h1>
           <p className="text-sm text-muted-foreground">Effectifs et programme hebdomadaire.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" disabled={generating || classes.length === 0} onClick={() => regenerate()}>
+          {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Générer maintenant
+        </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Ajouter</Button>
@@ -84,6 +134,7 @@ function ClassesPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -131,7 +182,10 @@ function ClassesPage() {
                       teacher_id: assign.teacher_id || null,
                       hours_per_week: Number(assign.hours_per_week),
                     });
-                    if (ok) setAssign({ subject_id: "", teacher_id: "", hours_per_week: 2 });
+                    if (ok) {
+                      setAssign({ subject_id: "", teacher_id: "", hours_per_week: 2 });
+                      void regenerate();
+                    }
                   }}
                 >
                   <Select value={assign.subject_id} onValueChange={(v) => setAssign({ ...assign, subject_id: v })}>

@@ -31,7 +31,7 @@ function SubjectsPage() {
   const { data: subjects = [] } = useSubjects();
   const crud = useCrud("subjects");
   const [open, setOpen] = useState(false);
-  const nextColor = SUBJECT_PALETTE[subjects.length % SUBJECT_PALETTE.length];
+  const nextColor = SUBJECT_PALETTE[subjects.length % SUBJECT_PALETTE.length] ?? "#2563eb";
   const [form, setForm] = useState({ name: "", color: "", requires_special_room: false, required_room_type: "" });
   const [seeding, setSeeding] = useState(false);
 
@@ -48,7 +48,7 @@ function SubjectsPage() {
     for (const name of missing) {
       await crud.create({
         name,
-        color: SUBJECT_PALETTE[index % SUBJECT_PALETTE.length],
+        color: SUBJECT_PALETTE[index % SUBJECT_PALETTE.length] ?? "#2563eb",
         color_index: index % SUBJECT_PALETTE.length,
         requires_special_room: false,
         required_room_type: null,
@@ -81,11 +81,12 @@ function SubjectsPage() {
               className="space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
-                const color = form.color || nextColor;
+                const color: string = form.color || nextColor;
+                const paletteIndex = SUBJECT_PALETTE.indexOf(color);
                 const ok = await crud.create({
                   name: form.name,
                   color,
-                  color_index: SUBJECT_PALETTE.indexOf(color) >= 0 ? SUBJECT_PALETTE.indexOf(color) : subjects.length % SUBJECT_PALETTE.length,
+                  color_index: paletteIndex >= 0 ? paletteIndex : subjects.length % SUBJECT_PALETTE.length,
                   requires_special_room: form.requires_special_room,
                   required_room_type: form.requires_special_room ? form.required_room_type || null : null,
                   school_id: profile!.school_id,

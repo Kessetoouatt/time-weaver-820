@@ -67,7 +67,7 @@ function Dashboard() {
   for (const cls of classes) {
     const needed = classSubjects
       .filter((cs) => cs.class_id === cls.id)
-      .reduce((sum, cs) => sum + Math.ceil(cs.hours_per_week / slotHours), 0);
+      .reduce((sum, cs) => sum + slotsNeeded(cs.hours_per_week, slotHours), 0);
     if (needed === 0) issues.push(`La classe ${cls.name} n'a aucune matière affectée.`);
     else if (needed > weeklyCells)
       issues.push(`La classe ${cls.name} demande ${needed} créneaux pour ${weeklyCells} disponibles.`);

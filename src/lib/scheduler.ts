@@ -126,7 +126,7 @@ export function checkFeasibility(input: GenInput): string[] {
 
   const perClassSlots = new Map<string, number>();
   for (const cs of input.classSubjects) {
-    const needed = Math.ceil(cs.hours_per_week / slotHours);
+    const needed = slotsNeeded(cs.hours_per_week, slotHours);
     perClassSlots.set(cs.class_id, (perClassSlots.get(cs.class_id) ?? 0) + needed);
   }
   for (const [classId, needed] of perClassSlots) {
@@ -141,7 +141,7 @@ export function checkFeasibility(input: GenInput): string[] {
   const perTeacherSlots = new Map<string, number>();
   for (const cs of input.classSubjects) {
     if (!cs.teacher_id) continue;
-    const needed = Math.ceil(cs.hours_per_week / slotHours);
+    const needed = slotsNeeded(cs.hours_per_week, slotHours);
     perTeacherSlots.set(cs.teacher_id, (perTeacherSlots.get(cs.teacher_id) ?? 0) + needed);
   }
   for (const [teacherId, needed] of perTeacherSlots) {

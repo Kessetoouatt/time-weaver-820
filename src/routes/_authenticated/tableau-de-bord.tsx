@@ -14,6 +14,8 @@ import {
   useTeachers,
 } from "@/hooks/useSchoolData";
 import { buildSlots } from "@/lib/timetable";
+import { slotsNeeded } from "@/lib/scheduler";
+
 
 export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
   head: () => ({

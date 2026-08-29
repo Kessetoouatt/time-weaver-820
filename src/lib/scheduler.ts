@@ -80,11 +80,14 @@ type Lesson = {
 type Block = Lesson & { size: number };
 
 /**
- * Number of slots needed for a weekly volume. Rounding to the nearest slot
- * avoids adding a phantom extra hour when the slot duration is not exactly 60'.
+ * Number of slots needed for a weekly volume. Never rounds up: a volume of 8h
+ * must stay 8h, even when a slot is shorter than 60 minutes (a slot is treated
+ * as one teaching period). A small epsilon absorbs floating point noise.
  */
 export function slotsNeeded(hoursPerWeek: number, slotHours: number): number {
-  return Math.max(1, Math.round(hoursPerWeek / slotHours));
+  if (!Number.isFinite(hoursPerWeek) || hoursPerWeek <= 0) return 0;
+  const raw = hoursPerWeek / slotHours;
+  return Math.max(1, Math.floor(raw + 1e-6));
 }
 
 const hoursLabel = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`;

@@ -76,7 +76,19 @@ type Lesson = {
   teacherName: string;
 };
 
+/** A contiguous group of slots (2h block, or 1h for the odd remainder). */
+type Block = Lesson & { size: number };
+
+/**
+ * Number of slots needed for a weekly volume. Rounding to the nearest slot
+ * avoids adding a phantom extra hour when the slot duration is not exactly 60'.
+ */
+export function slotsNeeded(hoursPerWeek: number, slotHours: number): number {
+  return Math.max(1, Math.round(hoursPerWeek / slotHours));
+}
+
 const hoursLabel = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
+
 
 export function checkFeasibility(input: GenInput): string[] {
   const errors: string[] = [];
@@ -114,7 +126,7 @@ export function checkFeasibility(input: GenInput): string[] {
 
   const perClassSlots = new Map<string, number>();
   for (const cs of input.classSubjects) {
-    const needed = Math.ceil(cs.hours_per_week / slotHours);
+    const needed = slotsNeeded(cs.hours_per_week, slotHours);
     perClassSlots.set(cs.class_id, (perClassSlots.get(cs.class_id) ?? 0) + needed);
   }
   for (const [classId, needed] of perClassSlots) {
@@ -129,7 +141,7 @@ export function checkFeasibility(input: GenInput): string[] {
   const perTeacherSlots = new Map<string, number>();
   for (const cs of input.classSubjects) {
     if (!cs.teacher_id) continue;
-    const needed = Math.ceil(cs.hours_per_week / slotHours);
+    const needed = slotsNeeded(cs.hours_per_week, slotHours);
     perTeacherSlots.set(cs.teacher_id, (perTeacherSlots.get(cs.teacher_id) ?? 0) + needed);
   }
   for (const [teacherId, needed] of perTeacherSlots) {
@@ -235,22 +247,26 @@ export function generateTimetable(input: GenInput): GenResult {
   const classById = new Map(input.classes.map((c) => [c.id, c]));
   const teacherById = new Map(input.teachers.map((t) => [t.id, t]));
 
-  const lessons: Lesson[] = [];
+  // Blocks: even volumes are split into 2-hour blocks, odd volumes get one
+  // extra single hour (e.g. 5h -> 2h + 2h + 1h).
+  const blocks: Block[] = [];
   for (const cs of input.classSubjects) {
     const subject = subjectById.get(cs.subject_id);
-    const count = Math.ceil(cs.hours_per_week / slotHours);
-    for (let i = 0; i < count; i += 1) {
-      lessons.push({
-        classId: cs.class_id,
-        subjectId: cs.subject_id,
-        teacherId: cs.teacher_id as string,
-        needsRoomType: subject?.requires_special_room ? (subject.required_room_type ?? null) : null,
-        className: classById.get(cs.class_id)?.name ?? "?",
-        subjectName: subject?.name ?? "?",
-        teacherName: teacherById.get(cs.teacher_id ?? "")?.full_name ?? "Non assigné",
-      });
-    }
+    const count = slotsNeeded(cs.hours_per_week, slotHours);
+    const base: Lesson = {
+      classId: cs.class_id,
+      subjectId: cs.subject_id,
+      teacherId: cs.teacher_id as string,
+      needsRoomType: subject?.requires_special_room ? (subject.required_room_type ?? null) : null,
+      className: classById.get(cs.class_id)?.name ?? "?",
+      subjectName: subject?.name ?? "?",
+      teacherName: teacherById.get(cs.teacher_id ?? "")?.full_name ?? "Non assigné",
+    };
+    const pairs = Math.floor(count / 2);
+    for (let i = 0; i < pairs; i += 1) blocks.push({ ...base, size: 2 });
+    if (count % 2 === 1) blocks.push({ ...base, size: 1 });
   }
+
 
   const teacherAvail = new Map<string, boolean[]>();
   for (const teacher of input.teachers) {
@@ -265,18 +281,20 @@ export function generateTimetable(input: GenInput): GenResult {
 
   // MRV heuristic: the most loaded teachers are scheduled first.
   const teacherLoad = new Map<string, number>();
-  for (const l of lessons) teacherLoad.set(l.teacherId, (teacherLoad.get(l.teacherId) ?? 0) + 1);
+  for (const b of blocks) teacherLoad.set(b.teacherId, (teacherLoad.get(b.teacherId) ?? 0) + b.size);
 
-  type Attempt = { entries: GenEntry[]; unplaced: Lesson[] };
+  type Attempt = { entries: GenEntry[]; unplaced: Block[] };
 
   const runAttempt = (seed: number): Attempt => {
     const random = makeRandom(seed);
-    // Most loaded teachers first; ties broken randomly so each attempt explores differently.
-    const ordered = lessons
+    // Longest blocks and most loaded teachers first; ties broken randomly.
+    const ordered = blocks
       .map((l) => ({ l, r: random() }))
       .sort(
         (a, b) =>
-          (teacherLoad.get(b.l.teacherId) ?? 0) - (teacherLoad.get(a.l.teacherId) ?? 0) || a.r - b.r,
+          b.l.size - a.l.size ||
+          (teacherLoad.get(b.l.teacherId) ?? 0) - (teacherLoad.get(a.l.teacherId) ?? 0) ||
+          a.r - b.r,
       )
       .map((x) => x.l);
 
@@ -287,18 +305,17 @@ export function generateTimetable(input: GenInput): GenResult {
     const roomBusy = new Map<string, boolean[]>();
     for (const r of input.rooms) roomBusy.set(r.id, new Array(cellCount).fill(false));
 
-    const pickRoom = (lesson: Lesson, cell: number): { room: GenRoom | null; ok: boolean } => {
+    const pickRoom = (lesson: Lesson, cells: number[]): { room: GenRoom | null; ok: boolean } => {
       if (input.rooms.length === 0) return { room: null, ok: true };
+      const free = (r: GenRoom) => cells.every((cell) => !roomBusy.get(r.id)![cell]);
       if (lesson.needsRoomType) {
-        const candidates = input.rooms.filter(
-          (r) => r.room_type === lesson.needsRoomType && !roomBusy.get(r.id)![cell],
-        );
+        const candidates = input.rooms.filter((r) => r.room_type === lesson.needsRoomType && free(r));
         if (candidates.length === 0) return { room: null, ok: false };
         return { room: candidates[0]!, ok: true };
       }
       const headcount = classById.get(lesson.classId)?.headcount ?? 0;
       const candidates = input.rooms
-        .filter((r) => !roomBusy.get(r.id)![cell] && r.capacity >= headcount)
+        .filter((r) => free(r) && r.capacity >= headcount)
         .sort((a, b) => {
           const aNormal = a.room_type === "normale" ? 0 : 1;
           const bNormal = b.room_type === "normale" ? 0 : 1;
@@ -308,11 +325,11 @@ export function generateTimetable(input: GenInput): GenResult {
       return { room: candidates[0] ?? null, ok: true };
     };
 
-    // Soft preference: avoid the same subject twice a day for a class.
+    // Soft preference: spread a subject over distinct days for a class.
     const dayClassSubject = new Set<string>();
 
     const entries: GenEntry[] = [];
-    const unplaced: Lesson[] = [];
+    const unplaced: Block[] = [];
 
     for (const lesson of ordered) {
       const cls = classBusy.get(lesson.classId);
@@ -323,11 +340,28 @@ export function generateTimetable(input: GenInput): GenResult {
         continue;
       }
 
+      // Candidate start cells where the whole block fits on contiguous slots.
       const candidates: number[] = [];
-      for (let cell = 0; cell < cellCount; cell += 1) {
-        if (cls[cell] || tb[cell] || !avail[cell]) continue;
-        if (lesson.needsRoomType && !pickRoom(lesson, cell).ok) continue;
-        candidates.push(cell);
+      for (let d = 0; d < D; d += 1) {
+        for (let s = 0; s + lesson.size <= S; s += 1) {
+          let ok = true;
+          for (let k = 0; k < lesson.size; k += 1) {
+            const cell = d * S + s + k;
+            if (cls[cell] || tb[cell] || !avail[cell]) {
+              ok = false;
+              break;
+            }
+            // Consecutive slots must be truly back to back (no break in between).
+            if (k > 0 && slots[s + k - 1]!.end !== slots[s + k]!.start) {
+              ok = false;
+              break;
+            }
+          }
+          if (!ok) continue;
+          const cells = Array.from({ length: lesson.size }, (_, k) => d * S + s + k);
+          if (lesson.needsRoomType && !pickRoom(lesson, cells).ok) continue;
+          candidates.push(d * S + s);
+        }
       }
       if (candidates.length === 0) {
         unplaced.push(lesson);
@@ -341,24 +375,27 @@ export function generateTimetable(input: GenInput): GenResult {
           ),
       );
       const pool = preferred.length > 0 ? preferred : candidates;
-      const cell = pool[Math.floor(random() * pool.length)]!;
+      const startCell = pool[Math.floor(random() * pool.length)]!;
+      const cells = Array.from({ length: lesson.size }, (_, k) => startCell + k);
 
-      const { room } = pickRoom(lesson, cell);
-      cls[cell] = lesson;
-      tb[cell] = true;
-      if (room) roomBusy.get(room.id)![cell] = true;
-      const d = Math.floor(cell / S);
-      const s = cell % S;
+      const { room } = pickRoom(lesson, cells);
+      const d = Math.floor(startCell / S);
       dayClassSubject.add(`${lesson.classId}|${days[d]}|${lesson.subjectId}`);
-      entries.push({
-        class_id: lesson.classId,
-        subject_id: lesson.subjectId,
-        teacher_id: lesson.teacherId,
-        room_id: room?.id ?? null,
-        day_of_week: days[d]!,
-        start_time: slots[s]!.start,
-        end_time: slots[s]!.end,
-      });
+      for (const cell of cells) {
+        cls[cell] = lesson;
+        tb[cell] = true;
+        if (room) roomBusy.get(room.id)![cell] = true;
+        const s = cell % S;
+        entries.push({
+          class_id: lesson.classId,
+          subject_id: lesson.subjectId,
+          teacher_id: lesson.teacherId,
+          room_id: room?.id ?? null,
+          day_of_week: days[d]!,
+          start_time: slots[s]!.start,
+          end_time: slots[s]!.end,
+        });
+      }
     }
 
     return { entries, unplaced };
@@ -367,11 +404,12 @@ export function generateTimetable(input: GenInput): GenResult {
   let best: Attempt | null = null;
   for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
     const result = runAttempt(attempt * 7919 + 104729);
-    if (!best || result.unplaced.length < best.unplaced.length) best = result;
-    if (best.unplaced.length === 0) break;
+    const score = (a: Attempt) => a.unplaced.reduce((sum, b) => sum + b.size, 0);
+    if (!best || score(result) < score(best)) best = result;
+    if (score(best) === 0) break;
   }
 
-  const attempt = best ?? { entries: [], unplaced: [] };
+  const attempt = best ?? { entries: [], unplaced: [] as Block[] };
   const entries = attempt.entries;
 
   const unplaced: GenUnplaced[] = [];
@@ -382,15 +420,16 @@ export function generateTimetable(input: GenInput): GenResult {
         u.subjectName === lesson.subjectName &&
         u.teacherName === lesson.teacherName,
     );
-    if (existing) existing.hours += slotHours;
+    if (existing) existing.hours += slotHours * lesson.size;
     else
       unplaced.push({
         className: lesson.className,
         subjectName: lesson.subjectName,
         teacherName: lesson.teacherName,
-        hours: slotHours,
+        hours: slotHours * lesson.size,
       });
   }
+
 
   const warnings: string[] = [];
   for (const teacher of input.teachers) {

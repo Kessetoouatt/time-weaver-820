@@ -76,7 +76,19 @@ type Lesson = {
   teacherName: string;
 };
 
+/** A contiguous group of slots (2h block, or 1h for the odd remainder). */
+type Block = Lesson & { size: number };
+
+/**
+ * Number of slots needed for a weekly volume. Rounding to the nearest slot
+ * avoids adding a phantom extra hour when the slot duration is not exactly 60'.
+ */
+export function slotsNeeded(hoursPerWeek: number, slotHours: number): number {
+  return Math.max(1, Math.round(hoursPerWeek / slotHours));
+}
+
 const hoursLabel = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
+
 
 export function checkFeasibility(input: GenInput): string[] {
   const errors: string[] = [];

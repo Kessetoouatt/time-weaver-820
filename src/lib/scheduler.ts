@@ -235,22 +235,26 @@ export function generateTimetable(input: GenInput): GenResult {
   const classById = new Map(input.classes.map((c) => [c.id, c]));
   const teacherById = new Map(input.teachers.map((t) => [t.id, t]));
 
-  const lessons: Lesson[] = [];
+  // Blocks: even volumes are split into 2-hour blocks, odd volumes get one
+  // extra single hour (e.g. 5h -> 2h + 2h + 1h).
+  const blocks: Block[] = [];
   for (const cs of input.classSubjects) {
     const subject = subjectById.get(cs.subject_id);
-    const count = Math.ceil(cs.hours_per_week / slotHours);
-    for (let i = 0; i < count; i += 1) {
-      lessons.push({
-        classId: cs.class_id,
-        subjectId: cs.subject_id,
-        teacherId: cs.teacher_id as string,
-        needsRoomType: subject?.requires_special_room ? (subject.required_room_type ?? null) : null,
-        className: classById.get(cs.class_id)?.name ?? "?",
-        subjectName: subject?.name ?? "?",
-        teacherName: teacherById.get(cs.teacher_id ?? "")?.full_name ?? "Non assigné",
-      });
-    }
+    const count = slotsNeeded(cs.hours_per_week, slotHours);
+    const base: Lesson = {
+      classId: cs.class_id,
+      subjectId: cs.subject_id,
+      teacherId: cs.teacher_id as string,
+      needsRoomType: subject?.requires_special_room ? (subject.required_room_type ?? null) : null,
+      className: classById.get(cs.class_id)?.name ?? "?",
+      subjectName: subject?.name ?? "?",
+      teacherName: teacherById.get(cs.teacher_id ?? "")?.full_name ?? "Non assigné",
+    };
+    const pairs = Math.floor(count / 2);
+    for (let i = 0; i < pairs; i += 1) blocks.push({ ...base, size: 2 });
+    if (count % 2 === 1) blocks.push({ ...base, size: 1 });
   }
+
 
   const teacherAvail = new Map<string, boolean[]>();
   for (const teacher of input.teachers) {

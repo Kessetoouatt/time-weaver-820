@@ -55,6 +55,11 @@ function ClassesPage() {
   const [form, setForm] = useState({ name: "", level: "", headcount: 30 });
   const [selected, setSelected] = useState<string | null>(null);
   const [assign, setAssign] = useState({ subject_id: "", teacher_id: "", hours_per_week: 2 });
+  const [presetOpen, setPresetOpen] = useState(false);
+  const [presetKeys, setPresetKeys] = useState<string[]>(LEVEL_GROUPS.map((g) => g.key));
+  const [presetCount, setPresetCount] = useState(5);
+  const [presetHeadcount, setPresetHeadcount] = useState(30);
+  const [presetBusy, setPresetBusy] = useState(false);
 
   const activeClass = classes.find((c) => c.id === selected) ?? classes[0] ?? null;
 

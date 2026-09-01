@@ -40,6 +40,7 @@ function TeachersPage() {
   const { data: profile } = useProfile();
   const { data: teachers = [] } = useTeachers();
   const { data: unavailabilities = [] } = useUnavailabilities();
+  const queryClient = useQueryClient();
   const crud = useCrud("teachers");
   const unavCrud = useCrud("teacher_unavailabilities");
   const [editing, setEditing] = useState<Teacher | null>(null);

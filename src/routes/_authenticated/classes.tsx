@@ -145,6 +145,77 @@ function ClassesPage() {
         <Button variant="outline" disabled={generating || classes.length === 0} onClick={() => regenerate()}>
           {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Générer maintenant
         </Button>
+        <Dialog open={presetOpen} onOpenChange={setPresetOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline"><ListPlus className="size-4" /> Pré-enregistrer</Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Pré-enregistrer les classes</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pcount">Classes par niveau</Label>
+                  <Input
+                    id="pcount"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={presetCount}
+                    onChange={(e) => setPresetCount(Math.max(1, Number(e.target.value)))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phead">Effectif par défaut</Label>
+                  <Input
+                    id="phead"
+                    type="number"
+                    min={1}
+                    value={presetHeadcount}
+                    onChange={(e) => setPresetHeadcount(Math.max(1, Number(e.target.value)))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="secondary" onClick={() => setPresetKeys(LEVEL_GROUPS.map((g) => g.key))}>
+                  Tout cocher
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setPresetKeys([])}>
+                  Tout décocher
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {Object.entries(groupsByLevel).map(([level, groups]) => (
+                  <div key={level} className="rounded-lg border border-border p-3">
+                    <p className="mb-2 text-sm font-medium">{level}</p>
+                    <div className="flex flex-wrap gap-3">
+                      {groups.map((group) => (
+                        <label key={group.key} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={presetKeys.includes(group.key)}
+                            onCheckedChange={(v) => toggleGroup(group.key, v === true)}
+                          />
+                          {group.serie ?? "Toutes classes"}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                {presetRows.length} nouvelle(s) classe(s) seront créées (les doublons sont ignorés).
+              </p>
+              <Button className="w-full" disabled={presetBusy || presetRows.length === 0} onClick={applyPreset}>
+                {presetBusy ? <Loader2 className="size-4 animate-spin" /> : null} Créer les classes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Ajouter</Button>

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ListPlus, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/components/app/CrudHelpers";
+import { supabase } from "@/integrations/supabase/client";
+import { LEVEL_GROUPS, classNamesFor, type LevelGroup } from "@/lib/school-levels";
 import {
   useClassSubjects,
   useClasses,
@@ -52,6 +55,11 @@ function ClassesPage() {
   const [form, setForm] = useState({ name: "", level: "", headcount: 30 });
   const [selected, setSelected] = useState<string | null>(null);
   const [assign, setAssign] = useState({ subject_id: "", teacher_id: "", hours_per_week: 2 });
+  const [presetOpen, setPresetOpen] = useState(false);
+  const [presetKeys, setPresetKeys] = useState<string[]>(LEVEL_GROUPS.map((g) => g.key));
+  const [presetCount, setPresetCount] = useState(5);
+  const [presetHeadcount, setPresetHeadcount] = useState(30);
+  const [presetBusy, setPresetBusy] = useState(false);
 
   const activeClass = classes.find((c) => c.id === selected) ?? classes[0] ?? null;
 
@@ -88,6 +96,44 @@ function ClassesPage() {
     }
   };
 
+  const toggleGroup = (key: string, checked: boolean) =>
+    setPresetKeys((keys) => (checked ? [...new Set([...keys, key])] : keys.filter((k) => k !== key)));
+
+  const selectedGroups = LEVEL_GROUPS.filter((g) => presetKeys.includes(g.key));
+  const existingNames = new Set(classes.map((c) => c.name.toLowerCase()));
+  const presetRows = selectedGroups.flatMap((group) =>
+    classNamesFor(group, presetCount)
+      .filter((name) => !existingNames.has(name.toLowerCase()))
+      .map((name) => ({
+        school_id: profile!.school_id as string,
+        name,
+        level: group.serie ? `${group.level} ${group.serie}` : group.level,
+        headcount: Number(presetHeadcount),
+      })),
+  );
+
+  const applyPreset = async () => {
+    if (presetRows.length === 0) {
+      toast.info("Ces classes existent déjà.");
+      return;
+    }
+    setPresetBusy(true);
+    const { error } = await supabase.from("classes").insert(presetRows);
+    setPresetBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`${presetRows.length} classes créées.`);
+    setPresetOpen(false);
+    await queryClient.invalidateQueries();
+  };
+
+  const groupsByLevel = LEVEL_GROUPS.reduce<Record<string, LevelGroup[]>>((acc, g) => {
+    (acc[g.level] ??= []).push(g);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -99,6 +145,77 @@ function ClassesPage() {
         <Button variant="outline" disabled={generating || classes.length === 0} onClick={() => regenerate()}>
           {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Générer maintenant
         </Button>
+        <Dialog open={presetOpen} onOpenChange={setPresetOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline"><ListPlus className="size-4" /> Pré-enregistrer</Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Pré-enregistrer les classes</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pcount">Classes par niveau</Label>
+                  <Input
+                    id="pcount"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={presetCount}
+                    onChange={(e) => setPresetCount(Math.max(1, Number(e.target.value)))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phead">Effectif par défaut</Label>
+                  <Input
+                    id="phead"
+                    type="number"
+                    min={1}
+                    value={presetHeadcount}
+                    onChange={(e) => setPresetHeadcount(Math.max(1, Number(e.target.value)))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="secondary" onClick={() => setPresetKeys(LEVEL_GROUPS.map((g) => g.key))}>
+                  Tout cocher
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setPresetKeys([])}>
+                  Tout décocher
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {Object.entries(groupsByLevel).map(([level, groups]) => (
+                  <div key={level} className="rounded-lg border border-border p-3">
+                    <p className="mb-2 text-sm font-medium">{level}</p>
+                    <div className="flex flex-wrap gap-3">
+                      {groups.map((group) => (
+                        <label key={group.key} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={presetKeys.includes(group.key)}
+                            onCheckedChange={(v) => toggleGroup(group.key, v === true)}
+                          />
+                          {group.serie ?? "Toutes classes"}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                {presetRows.length} nouvelle(s) classe(s) seront créées (les doublons sont ignorés).
+              </p>
+              <Button className="w-full" disabled={presetBusy || presetRows.length === 0} onClick={applyPreset}>
+                {presetBusy ? <Loader2 className="size-4 animate-spin" /> : null} Créer les classes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Ajouter</Button>

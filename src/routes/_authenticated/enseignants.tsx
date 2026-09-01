@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, Trash2, Pencil, X } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +16,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCrud } from "@/components/app/CrudHelpers";
+import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useTeachers, useUnavailabilities, type Teacher } from "@/hooks/useSchoolData";
 import { ALL_DAYS, shortTime } from "@/lib/timetable";
 
@@ -36,12 +40,51 @@ function TeachersPage() {
   const { data: profile } = useProfile();
   const { data: teachers = [] } = useTeachers();
   const { data: unavailabilities = [] } = useUnavailabilities();
+  const queryClient = useQueryClient();
   const crud = useCrud("teachers");
   const unavCrud = useCrud("teacher_unavailabilities");
   const [editing, setEditing] = useState<Teacher | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ full_name: "", email: "", max_hours_week: 20, latest_end_time: "" });
-  const [unav, setUnav] = useState({ teacher_id: "", day_of_week: "lundi", start_time: "08:00", end_time: "10:00" });
+  const [unavTeacher, setUnavTeacher] = useState<string>("");
+  const [unavDays, setUnavDays] = useState<string[]>([]);
+  const [unavRanges, setUnavRanges] = useState<{ start_time: string; end_time: string }[]>([
+    { start_time: "08:00", end_time: "10:00" },
+  ]);
+  const [unavBusy, setUnavBusy] = useState(false);
+
+  const resetUnav = () => {
+    setUnavTeacher("");
+    setUnavDays([]);
+    setUnavRanges([{ start_time: "08:00", end_time: "10:00" }]);
+  };
+
+  const submitUnav = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const valid = unavRanges.filter((r) => r.start_time && r.end_time && r.start_time < r.end_time);
+    if (unavDays.length === 0 || valid.length === 0) {
+      toast.error("Choisissez au moins un jour et un créneau valide.");
+      return;
+    }
+    const rows = unavDays.flatMap((day) =>
+      valid.map((r) => ({
+        teacher_id: unavTeacher,
+        day_of_week: day,
+        start_time: `${r.start_time}:00`,
+        end_time: `${r.end_time}:00`,
+      })),
+    );
+    setUnavBusy(true);
+    const { error } = await supabase.from("teacher_unavailabilities").insert(rows);
+    setUnavBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`${rows.length} indisponibilité(s) enregistrée(s).`);
+    resetUnav();
+    await queryClient.invalidateQueries();
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -140,7 +183,7 @@ function TeachersPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setUnav({ ...unav, teacher_id: teacher.id })}
+                        onClick={() => { setUnavTeacher(teacher.id); setUnavDays([]); }}
                       >
                         <Plus className="size-3" /> Indispo
                       </Button>
@@ -181,46 +224,78 @@ function TeachersPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!unav.teacher_id} onOpenChange={(v) => !v && setUnav({ ...unav, teacher_id: "" })}>
-        <DialogContent>
+      <Dialog open={!!unavTeacher} onOpenChange={(v) => !v && resetUnav()}>
+        <DialogContent className="max-h-[85vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>Ajouter une indisponibilité</DialogTitle>
+            <DialogTitle>Indisponibilités de {teachers.find((t) => t.id === unavTeacher)?.full_name}</DialogTitle>
           </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              const ok = await unavCrud.create({
-                teacher_id: unav.teacher_id,
-                day_of_week: unav.day_of_week,
-                start_time: `${unav.start_time}:00`,
-                end_time: `${unav.end_time}:00`,
-              });
-              if (ok) setUnav({ ...unav, teacher_id: "" });
-            }}
-          >
+          <form className="space-y-4" onSubmit={submitUnav}>
             <div className="space-y-2">
-              <Label>Jour</Label>
-              <Select value={unav.day_of_week} onValueChange={(v) => setUnav({ ...unav, day_of_week: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ALL_DAYS.map((day) => (
-                    <SelectItem key={day} value={day} className="capitalize">{day}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="us">De</Label>
-                <Input id="us" type="time" value={unav.start_time} onChange={(e) => setUnav({ ...unav, start_time: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ue">À</Label>
-                <Input id="ue" type="time" value={unav.end_time} onChange={(e) => setUnav({ ...unav, end_time: e.target.value })} />
+              <Label>Jours concernés</Label>
+              <div className="flex flex-wrap gap-3">
+                {ALL_DAYS.map((day) => (
+                  <label key={day} className="flex items-center gap-2 text-sm capitalize">
+                    <Checkbox
+                      checked={unavDays.includes(day)}
+                      onCheckedChange={(v) =>
+                        setUnavDays((days) => (v === true ? [...days, day] : days.filter((d) => d !== day)))
+                      }
+                    />
+                    {day}
+                  </label>
+                ))}
               </div>
             </div>
-            <Button type="submit" className="w-full">Ajouter</Button>
+
+            <div className="space-y-2">
+              <Label>Créneaux horaires</Label>
+              {unavRanges.map((range, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    type="time"
+                    value={range.start_time}
+                    aria-label="Début"
+                    onChange={(e) =>
+                      setUnavRanges((rs) => rs.map((r, i) => (i === index ? { ...r, start_time: e.target.value } : r)))
+                    }
+                  />
+                  <span className="text-muted-foreground">→</span>
+                  <Input
+                    type="time"
+                    value={range.end_time}
+                    aria-label="Fin"
+                    onChange={(e) =>
+                      setUnavRanges((rs) => rs.map((r, i) => (i === index ? { ...r, end_time: e.target.value } : r)))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Retirer le créneau"
+                    disabled={unavRanges.length === 1}
+                    onClick={() => setUnavRanges((rs) => rs.filter((_, i) => i !== index))}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setUnavRanges((rs) => [...rs, { start_time: "14:00", end_time: "16:00" }])}
+              >
+                <Plus className="size-3" /> Ajouter un créneau
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Chaque créneau sera appliqué à tous les jours cochés.
+            </p>
+            <Button type="submit" className="w-full" disabled={unavBusy}>
+              {unavBusy ? <Loader2 className="size-4 animate-spin" /> : null} Enregistrer
+            </Button>
           </form>
         </DialogContent>
       </Dialog>

@@ -183,7 +183,7 @@ function TeachersPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setUnav({ ...unav, teacher_id: teacher.id })}
+                        onClick={() => { setUnavTeacher(teacher.id); setUnavDays([]); }}
                       >
                         <Plus className="size-3" /> Indispo
                       </Button>

@@ -96,6 +96,44 @@ function ClassesPage() {
     }
   };
 
+  const toggleGroup = (key: string, checked: boolean) =>
+    setPresetKeys((keys) => (checked ? [...new Set([...keys, key])] : keys.filter((k) => k !== key)));
+
+  const selectedGroups = LEVEL_GROUPS.filter((g) => presetKeys.includes(g.key));
+  const existingNames = new Set(classes.map((c) => c.name.toLowerCase()));
+  const presetRows = selectedGroups.flatMap((group) =>
+    classNamesFor(group, presetCount)
+      .filter((name) => !existingNames.has(name.toLowerCase()))
+      .map((name) => ({
+        school_id: profile!.school_id as string,
+        name,
+        level: group.serie ? `${group.level} ${group.serie}` : group.level,
+        headcount: Number(presetHeadcount),
+      })),
+  );
+
+  const applyPreset = async () => {
+    if (presetRows.length === 0) {
+      toast.info("Ces classes existent déjà.");
+      return;
+    }
+    setPresetBusy(true);
+    const { error } = await supabase.from("classes").insert(presetRows);
+    setPresetBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`${presetRows.length} classes créées.`);
+    setPresetOpen(false);
+    await queryClient.invalidateQueries();
+  };
+
+  const groupsByLevel = LEVEL_GROUPS.reduce<Record<string, LevelGroup[]>>((acc, g) => {
+    (acc[g.level] ??= []).push(g);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">

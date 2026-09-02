@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CalendarClock, Loader2 } from "lucide-react";
+import { CalendarClock, Loader2, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/tableau-de-bord" });
@@ -58,11 +59,11 @@ function AuthPage() {
   const signUp = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/tableau-de-bord`,
+        emailRedirectTo: window.location.origin,
         data: { full_name: fullName },
       },
     });
@@ -75,7 +76,10 @@ function AuthPage() {
       );
       return;
     }
-    toast.success("Compte créé. Vous pouvez configurer votre établissement.");
+    if (!data.session) {
+      setConfirmationEmail(email);
+      return;
+    }
     navigate({ to: "/tableau-de-bord" });
   };
 
@@ -103,6 +107,24 @@ function AuthPage() {
           EDT Genius
         </Link>
         <Card>
+          {confirmationEmail ? (
+            <CardContent className="flex flex-col items-center gap-5 px-6 py-10 text-center">
+              <span className="grid size-12 place-items-center rounded-full bg-primary/15 text-primary">
+                <MailCheck className="size-6" />
+              </span>
+              <div className="space-y-2">
+                <CardTitle>Vérifiez votre boîte mail</CardTitle>
+                <CardDescription>
+                  Un lien de confirmation a été envoyé à <span className="font-medium text-foreground">{confirmationEmail}</span>.
+                  Cliquez sur ce lien avant de vous connecter.
+                </CardDescription>
+              </div>
+              <Button variant="outline" className="w-full" onClick={() => setConfirmationEmail(null)}>
+                Revenir à la connexion
+              </Button>
+            </CardContent>
+          ) : (
+            <>
           <CardHeader>
             <CardTitle>Votre espace établissement</CardTitle>
             <CardDescription>
@@ -179,6 +201,8 @@ function AuthPage() {
               Continuer avec Google
             </Button>
           </CardContent>
+            </>
+          )}
         </Card>
       </div>
     </div>

@@ -219,6 +219,7 @@ export type Database = {
           days_of_week: string[]
           email: string | null
           head_name: string | null
+          head_title: string | null
           id: string
           logo_url: string | null
           lunch_enabled: boolean
@@ -227,6 +228,8 @@ export type Database = {
           name: string
           phone: string | null
           reference_code: string | null
+          signature_city: string | null
+          signature_url: string | null
           slot_duration_minutes: number
           type: string
           website: string | null
@@ -239,6 +242,7 @@ export type Database = {
           days_of_week?: string[]
           email?: string | null
           head_name?: string | null
+          head_title?: string | null
           id?: string
           logo_url?: string | null
           lunch_enabled?: boolean
@@ -247,6 +251,8 @@ export type Database = {
           name: string
           phone?: string | null
           reference_code?: string | null
+          signature_city?: string | null
+          signature_url?: string | null
           slot_duration_minutes?: number
           type?: string
           website?: string | null
@@ -259,6 +265,7 @@ export type Database = {
           days_of_week?: string[]
           email?: string | null
           head_name?: string | null
+          head_title?: string | null
           id?: string
           logo_url?: string | null
           lunch_enabled?: boolean
@@ -267,6 +274,8 @@ export type Database = {
           name?: string
           phone?: string | null
           reference_code?: string | null
+          signature_city?: string | null
+          signature_url?: string | null
           slot_duration_minutes?: number
           type?: string
           website?: string | null

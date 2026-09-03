@@ -196,8 +196,32 @@ function TimetablePage() {
         </Alert>
       ) : null}
 
+      <div className="print-only mb-4">
+        <div className="flex items-start justify-between gap-4 border-b pb-3">
+          <div className="flex items-start gap-3">
+            {logoUrl ? (
+              <img src={logoUrl} alt={`Logo de ${school?.name ?? "l'établissement"}`} className="h-16 w-16 object-contain" />
+            ) : null}
+            <div className="text-xs">
+              <p className="text-base font-bold">{school?.name}</p>
+              {school?.address ? <p>{school.address}</p> : null}
+              <p>
+                {[school?.phone, school?.email, school?.website].filter(Boolean).join(" · ")}
+              </p>
+              {school?.reference_code ? <p>Réf. {school.reference_code}</p> : null}
+            </div>
+          </div>
+          <div className="text-right text-xs">
+            <p className="text-sm font-semibold">Emploi du temps</p>
+            <p>{mode === "classe" ? `Classe : ${activeClass?.name ?? ""}` : `Enseignant : ${activeTeacher?.full_name ?? ""}`}</p>
+            {activeVersion ? <p>{activeVersion.label}</p> : null}
+          </div>
+        </div>
+      </div>
+
       <Card>
-        <CardContent className="overflow-auto pt-6">
+        <CardContent className="print-area overflow-auto pt-6">
+
           {!boardReady ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               Configurez votre établissement et créez au moins une classe pour afficher la grille.

@@ -317,6 +317,23 @@ function TimetablePage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="print-area flex justify-end pt-2 print:pt-6">
+        <div className="w-64 text-center text-xs">
+          <p className="text-muted-foreground print:text-black">
+            {school?.signature_city ? `Fait à ${school.signature_city}, le ` : "Le "}
+            {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+          </p>
+          <p className="mt-1 font-semibold">{school?.head_title || "Le chef d'établissement"}</p>
+          {signatureUrl ? (
+            <img src={signatureUrl} alt="Signature du chef d'établissement" className="mx-auto my-1 h-16 object-contain" />
+          ) : (
+            <div className="my-2 h-16 border-b border-dashed border-border" />
+          )}
+          <p className="font-medium">{school?.head_name || "—"}</p>
+        </div>
+      </div>
     </div>
+
   );
 }

@@ -52,9 +52,13 @@ function SettingsPage() {
   const { data: school } = useSchool();
   const { data: savedBreaks = [] } = useSchoolBreaks();
   const logoUrl = useSchoolLogo();
+  const signatureUrl = useSchoolSignature();
   const fileRef = useRef<HTMLInputElement>(null);
+  const signatureRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+
 
   const [name, setName] = useState("");
   const [type, setType] = useState("lycee");

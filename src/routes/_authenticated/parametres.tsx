@@ -92,6 +92,9 @@ function SettingsPage() {
       website: school.website ?? "",
       reference_code: school.reference_code ?? "",
       head_name: school.head_name ?? "",
+      head_title: school.head_title ?? "",
+      signature_city: school.signature_city ?? "",
+
     });
     setDays(school.days_of_week);
     setStart(shortTime(school.day_start_time));

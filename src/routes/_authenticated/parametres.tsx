@@ -376,10 +376,73 @@ function SettingsPage() {
                 <Label htmlFor="refcode">Code / référence officielle</Label>
                 <Input id="refcode" value={refs.reference_code} onChange={(e) => setRefs({ ...refs, reference_code: e.target.value })} />
               </div>
-              <div className="space-y-2 sm:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="head">Chef d'établissement</Label>
-                <Input id="head" value={refs.head_name} onChange={(e) => setRefs({ ...refs, head_name: e.target.value })} />
+                <Input id="head" value={refs.head_name} onChange={(e) => setRefs({ ...refs, head_name: e.target.value })} placeholder="M. Jean Dupont" />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="head-title">Fonction</Label>
+                <Input
+                  id="head-title"
+                  value={refs.head_title}
+                  onChange={(e) => setRefs({ ...refs, head_title: e.target.value })}
+                  placeholder="Proviseur / Directeur des études"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signature-city">Ville de signature</Label>
+                <Input
+                  id="signature-city"
+                  value={refs.signature_city}
+                  onChange={(e) => setRefs({ ...refs, signature_city: e.target.value })}
+                  placeholder="Lomé"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Signature numérisée (facultatif)</Label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-border bg-secondary">
+                    {signatureUrl ? (
+                      <img src={signatureUrl} alt="Signature du chef d'établissement" className="size-full object-contain" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Aucune signature</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <input
+                      ref={signatureRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadSignature(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingSignature || !school}
+                        onClick={() => signatureRef.current?.click()}
+                      >
+                        {uploadingSignature ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                        Téléverser la signature
+                      </Button>
+                      {signatureUrl ? (
+                        <Button type="button" variant="ghost" onClick={() => void removeSignature()}>
+                          <Trash2 className="size-4" /> Retirer
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG à fond transparent recommandé. Sans image, un espace de signature manuscrite est imprimé.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <div className="space-y-2">

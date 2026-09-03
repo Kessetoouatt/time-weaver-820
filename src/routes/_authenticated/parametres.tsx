@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useSchool, useSchoolBreaks } from "@/hooks/useSchoolData";
-import { useSchoolLogo } from "@/hooks/useSchoolLogo";
+import { useSchoolLogo, useSchoolSignature } from "@/hooks/useSchoolLogo";
 import { ALL_DAYS, buildSlots, shortTime } from "@/lib/timetable";
 
 export const Route = createFileRoute("/_authenticated/parametres")({
@@ -52,9 +52,13 @@ function SettingsPage() {
   const { data: school } = useSchool();
   const { data: savedBreaks = [] } = useSchoolBreaks();
   const logoUrl = useSchoolLogo();
+  const signatureUrl = useSchoolSignature();
   const fileRef = useRef<HTMLInputElement>(null);
+  const signatureRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+
 
   const [name, setName] = useState("");
   const [type, setType] = useState("lycee");
@@ -65,7 +69,10 @@ function SettingsPage() {
     website: "",
     reference_code: "",
     head_name: "",
+    head_title: "",
+    signature_city: "",
   });
+
   const [days, setDays] = useState<string[]>(["lundi", "mardi", "mercredi", "jeudi", "vendredi"]);
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("17:00");
@@ -85,6 +92,9 @@ function SettingsPage() {
       website: school.website ?? "",
       reference_code: school.reference_code ?? "",
       head_name: school.head_name ?? "",
+      head_title: school.head_title ?? "",
+      signature_city: school.signature_city ?? "",
+
     });
     setDays(school.days_of_week);
     setStart(shortTime(school.day_start_time));
@@ -164,6 +174,9 @@ function SettingsPage() {
           website: refs.website || null,
           reference_code: refs.reference_code || null,
           head_name: refs.head_name || null,
+          head_title: refs.head_title || null,
+          signature_city: refs.signature_city || null,
+
           days_of_week: days,
           day_start_time: `${start}:00`,
           day_end_time: `${end}:00`,
@@ -227,6 +240,45 @@ function SettingsPage() {
     toast.success("Logo mis à jour.");
     await queryClient.invalidateQueries();
   };
+
+  const uploadSignature = async (file: File) => {
+    if (!school) {
+      toast.error("Créez d'abord l'établissement.");
+      return;
+    }
+    setUploadingSignature(true);
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${school.id}/signature-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("school-logos").upload(path, file, { upsert: true });
+    if (error) {
+      setUploadingSignature(false);
+      toast.error(error.message);
+      return;
+    }
+    const { error: updateError } = await supabase
+      .from("schools")
+      .update({ signature_url: path })
+      .eq("id", school.id);
+    setUploadingSignature(false);
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+    toast.success("Signature mise à jour.");
+    await queryClient.invalidateQueries();
+  };
+
+  const removeSignature = async () => {
+    if (!school) return;
+    const { error } = await supabase.from("schools").update({ signature_url: null }).eq("id", school.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Signature retirée.");
+    await queryClient.invalidateQueries();
+  };
+
 
   if (profileLoading) {
     return <Loader2 className="mx-auto mt-20 size-6 animate-spin text-muted-foreground" />;
@@ -324,10 +376,73 @@ function SettingsPage() {
                 <Label htmlFor="refcode">Code / référence officielle</Label>
                 <Input id="refcode" value={refs.reference_code} onChange={(e) => setRefs({ ...refs, reference_code: e.target.value })} />
               </div>
-              <div className="space-y-2 sm:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="head">Chef d'établissement</Label>
-                <Input id="head" value={refs.head_name} onChange={(e) => setRefs({ ...refs, head_name: e.target.value })} />
+                <Input id="head" value={refs.head_name} onChange={(e) => setRefs({ ...refs, head_name: e.target.value })} placeholder="M. Jean Dupont" />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="head-title">Fonction</Label>
+                <Input
+                  id="head-title"
+                  value={refs.head_title}
+                  onChange={(e) => setRefs({ ...refs, head_title: e.target.value })}
+                  placeholder="Proviseur / Directeur des études"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signature-city">Ville de signature</Label>
+                <Input
+                  id="signature-city"
+                  value={refs.signature_city}
+                  onChange={(e) => setRefs({ ...refs, signature_city: e.target.value })}
+                  placeholder="Lomé"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Signature numérisée (facultatif)</Label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-border bg-secondary">
+                    {signatureUrl ? (
+                      <img src={signatureUrl} alt="Signature du chef d'établissement" className="size-full object-contain" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Aucune signature</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <input
+                      ref={signatureRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void uploadSignature(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingSignature || !school}
+                        onClick={() => signatureRef.current?.click()}
+                      >
+                        {uploadingSignature ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                        Téléverser la signature
+                      </Button>
+                      {signatureUrl ? (
+                        <Button type="button" variant="ghost" onClick={() => void removeSignature()}>
+                          <Trash2 className="size-4" /> Retirer
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG à fond transparent recommandé. Sans image, un espace de signature manuscrite est imprimé.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <div className="space-y-2">

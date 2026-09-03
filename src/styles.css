@@ -179,9 +179,16 @@
   letter-spacing: 0.04em;
 }
 
+.print-only {
+  display: none;
+}
+
 @media print {
   .no-print {
     display: none !important;
+  }
+  .print-only {
+    display: block !important;
   }
   .print-area {
     break-inside: avoid;
@@ -191,3 +198,4 @@
     color: #000 !important;
   }
 }
+

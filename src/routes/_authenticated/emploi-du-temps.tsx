@@ -19,8 +19,10 @@ import {
   useTeachers,
   useVersions,
 } from "@/hooks/useSchoolData";
+import { useSchoolLogo, useSchoolSignature } from "@/hooks/useSchoolLogo";
 import { buildSlots, shortTime } from "@/lib/timetable";
 import { generateTimetableFn, moveEntryFn } from "@/lib/timetable.functions";
+
 
 type Unplaced = { className: string; subjectName: string; teacherName: string; hours: number };
 
@@ -45,6 +47,9 @@ function TimetablePage() {
   const { data: subjects = [] } = useSubjects();
   const { data: teachers = [] } = useTeachers();
   const { data: rooms = [] } = useRooms();
+  const logoUrl = useSchoolLogo();
+  const signatureUrl = useSchoolSignature();
+
 
   const [versionId, setVersionId] = useState<string | null>(null);
   const activeVersion = versions.find((v) => v.id === versionId) ?? versions[0] ?? null;
@@ -196,8 +201,32 @@ function TimetablePage() {
         </Alert>
       ) : null}
 
+      <div className="print-only mb-4">
+        <div className="flex items-start justify-between gap-4 border-b pb-3">
+          <div className="flex items-start gap-3">
+            {logoUrl ? (
+              <img src={logoUrl} alt={`Logo de ${school?.name ?? "l'établissement"}`} className="h-16 w-16 object-contain" />
+            ) : null}
+            <div className="text-xs">
+              <p className="text-base font-bold">{school?.name}</p>
+              {school?.address ? <p>{school.address}</p> : null}
+              <p>
+                {[school?.phone, school?.email, school?.website].filter(Boolean).join(" · ")}
+              </p>
+              {school?.reference_code ? <p>Réf. {school.reference_code}</p> : null}
+            </div>
+          </div>
+          <div className="text-right text-xs">
+            <p className="text-sm font-semibold">Emploi du temps</p>
+            <p>{mode === "classe" ? `Classe : ${activeClass?.name ?? ""}` : `Enseignant : ${activeTeacher?.full_name ?? ""}`}</p>
+            {activeVersion ? <p>{activeVersion.label}</p> : null}
+          </div>
+        </div>
+      </div>
+
       <Card>
-        <CardContent className="overflow-auto pt-6">
+        <CardContent className="print-area overflow-auto pt-6">
+
           {!boardReady ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               Configurez votre établissement et créez au moins une classe pour afficher la grille.
@@ -288,6 +317,23 @@ function TimetablePage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="print-area flex justify-end pt-2 print:pt-6">
+        <div className="w-64 text-center text-xs">
+          <p className="text-muted-foreground print:text-black">
+            {school?.signature_city ? `Fait à ${school.signature_city}, le ` : "Le "}
+            {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+          </p>
+          <p className="mt-1 font-semibold">{school?.head_title || "Le chef d'établissement"}</p>
+          {signatureUrl ? (
+            <img src={signatureUrl} alt="Signature du chef d'établissement" className="mx-auto my-1 h-16 object-contain" />
+          ) : (
+            <div className="my-2 h-16 border-b border-dashed border-border" />
+          )}
+          <p className="font-medium">{school?.head_name || "—"}</p>
+        </div>
+      </div>
     </div>
+
   );
 }

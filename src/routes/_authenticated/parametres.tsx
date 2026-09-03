@@ -174,6 +174,9 @@ function SettingsPage() {
           website: refs.website || null,
           reference_code: refs.reference_code || null,
           head_name: refs.head_name || null,
+          head_title: refs.head_title || null,
+          signature_city: refs.signature_city || null,
+
           days_of_week: days,
           day_start_time: `${start}:00`,
           day_end_time: `${end}:00`,

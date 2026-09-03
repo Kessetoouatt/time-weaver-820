@@ -19,8 +19,10 @@ import {
   useTeachers,
   useVersions,
 } from "@/hooks/useSchoolData";
+import { useSchoolLogo, useSchoolSignature } from "@/hooks/useSchoolLogo";
 import { buildSlots, shortTime } from "@/lib/timetable";
 import { generateTimetableFn, moveEntryFn } from "@/lib/timetable.functions";
+
 
 type Unplaced = { className: string; subjectName: string; teacherName: string; hours: number };
 
@@ -45,6 +47,9 @@ function TimetablePage() {
   const { data: subjects = [] } = useSubjects();
   const { data: teachers = [] } = useTeachers();
   const { data: rooms = [] } = useRooms();
+  const logoUrl = useSchoolLogo();
+  const signatureUrl = useSchoolSignature();
+
 
   const [versionId, setVersionId] = useState<string | null>(null);
   const activeVersion = versions.find((v) => v.id === versionId) ?? versions[0] ?? null;

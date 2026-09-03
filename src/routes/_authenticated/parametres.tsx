@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, useSchool, useSchoolBreaks } from "@/hooks/useSchoolData";
-import { useSchoolLogo } from "@/hooks/useSchoolLogo";
+import { useSchoolLogo, useSchoolSignature } from "@/hooks/useSchoolLogo";
 import { ALL_DAYS, buildSlots, shortTime } from "@/lib/timetable";
 
 export const Route = createFileRoute("/_authenticated/parametres")({
@@ -69,7 +69,10 @@ function SettingsPage() {
     website: "",
     reference_code: "",
     head_name: "",
+    head_title: "",
+    signature_city: "",
   });
+
   const [days, setDays] = useState<string[]>(["lundi", "mardi", "mercredi", "jeudi", "vendredi"]);
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("17:00");

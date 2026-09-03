@@ -241,6 +241,45 @@ function SettingsPage() {
     await queryClient.invalidateQueries();
   };
 
+  const uploadSignature = async (file: File) => {
+    if (!school) {
+      toast.error("Créez d'abord l'établissement.");
+      return;
+    }
+    setUploadingSignature(true);
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${school.id}/signature-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("school-logos").upload(path, file, { upsert: true });
+    if (error) {
+      setUploadingSignature(false);
+      toast.error(error.message);
+      return;
+    }
+    const { error: updateError } = await supabase
+      .from("schools")
+      .update({ signature_url: path })
+      .eq("id", school.id);
+    setUploadingSignature(false);
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+    toast.success("Signature mise à jour.");
+    await queryClient.invalidateQueries();
+  };
+
+  const removeSignature = async () => {
+    if (!school) return;
+    const { error } = await supabase.from("schools").update({ signature_url: null }).eq("id", school.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Signature retirée.");
+    await queryClient.invalidateQueries();
+  };
+
+
   if (profileLoading) {
     return <Loader2 className="mx-auto mt-20 size-6 animate-spin text-muted-foreground" />;
   }

@@ -3,13 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchool } from "./useSchoolData";
 
-/** Résout une URL signée affichable pour le logo de l'établissement. */
-export function useSchoolLogo(): string | null {
-  const { data: school } = useSchool();
-  const path = school?.logo_url ?? null;
-
+function useSignedSchoolFile(path: string | null): string | null {
   const { data } = useQuery({
-    queryKey: ["school-logo", path],
+    queryKey: ["school-file", path],
     enabled: !!path,
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
@@ -22,4 +18,16 @@ export function useSchoolLogo(): string | null {
   });
 
   return data ?? null;
+}
+
+/** Résout une URL signée affichable pour le logo de l'établissement. */
+export function useSchoolLogo(): string | null {
+  const { data: school } = useSchool();
+  return useSignedSchoolFile(school?.logo_url ?? null);
+}
+
+/** Résout une URL signée pour l'image de signature du chef d'établissement. */
+export function useSchoolSignature(): string | null {
+  const { data: school } = useSchool();
+  return useSignedSchoolFile(school?.signature_url ?? null);
 }
